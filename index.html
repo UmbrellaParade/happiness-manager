@@ -687,11 +687,17 @@
     }
 
     .open-window-scroll {
+      width: 100%;
+      max-width: 100%;
       overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
       padding-bottom: 4px;
     }
 
     .open-window-board {
+      width: max(100%, 980px);
       min-width: 980px;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1045,6 +1051,7 @@
       }
 
       .open-window-board {
+        width: max(100%, 900px);
         min-width: 900px;
       }
 

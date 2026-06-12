@@ -350,11 +350,17 @@
 }
 
 .hm-open-scroll {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   padding-bottom: 4px;
 }
 
 .hm-open-board {
+  width: max(100%, 900px);
   min-width: 900px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -548,6 +554,11 @@
   .hm-action-row button {
     grid-column: 2;
     width: max-content;
+  }
+
+  .hm-open-board {
+    width: max(100%, 900px);
+    min-width: 900px;
   }
 }
 
