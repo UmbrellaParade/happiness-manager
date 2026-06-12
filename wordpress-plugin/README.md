@@ -8,6 +8,8 @@
 
 固定ページを削除した場合、プラグインは自動で復活させません。必要になった時だけ、管理画面の「スマホ用ページを作成」から再作成できます。
 
+目標、4観点、日誌などの長文入力欄は、入力した分だけ縦に伸びます。欄の中だけでスクロールせず、ページ全体を縦スクロールして内容を確認できます。
+
 手動でページを作る場合は、次のショートコードを置きます。
 
 ```text
@@ -16,4 +18,4 @@
 
 ブラウザ内の一時WordPressで試す場合は、WordPress Playgroundを使えます。
 
-https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.3.json
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.4.json

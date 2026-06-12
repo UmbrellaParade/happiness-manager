@@ -215,7 +215,14 @@
 .hm-perspective textarea,
 .hm-coach textarea {
   min-height: 96px;
-  resize: vertical;
+  overflow: hidden;
+  resize: none;
+}
+
+.hm-form-grid textarea[data-autosize],
+.hm-perspective textarea[data-autosize],
+.hm-coach textarea[data-autosize] {
+  height: auto;
 }
 
 .hm-goal-list {

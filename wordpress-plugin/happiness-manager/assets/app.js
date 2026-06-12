@@ -252,12 +252,22 @@
       }
       if (full) root.innerHTML = renderApp();
       updateStatus(root);
+      if (full) resizeAutosizeTextareas(root);
     });
   }
 
   function updateStatus(root) {
     const status = root.querySelector("[data-save-status]");
     if (status) status.textContent = saveStatus;
+  }
+
+  function resizeAutosizeTextarea(textarea) {
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }
+
+  function resizeAutosizeTextareas(root) {
+    root.querySelectorAll("textarea[data-autosize]").forEach(resizeAutosizeTextarea);
   }
 
   function renderApp() {
@@ -323,7 +333,7 @@
 
   function field(key, label, value, type, extra = "") {
     const control = type === "textarea"
-      ? `<textarea data-goal-field="${key}">${escapeHtml(value)}</textarea>`
+      ? `<textarea data-goal-field="${key}" data-autosize>${escapeHtml(value)}</textarea>`
       : `<input type="${type}" data-goal-field="${key}" value="${escapeHtml(value)}">`;
     return `<label class="${extra}"><span>${label}</span>${control}</label>`;
   }
@@ -344,7 +354,7 @@
               <span>${hint}</span>
               <button type="button" data-add-bullet="${key}">・追加</button>
             </div>
-            <textarea data-perspective-field="${key}" id="hm-${key}" placeholder="・">${escapeHtml(goal.perspectives[key])}</textarea>
+            <textarea data-perspective-field="${key}" data-autosize id="hm-${key}" placeholder="・">${escapeHtml(goal.perspectives[key])}</textarea>
           </div>
         `).join("")}
       </div>
@@ -458,7 +468,7 @@
   }
 
   function journalField(key, label, value, extra = "") {
-    return `<label class="${extra}"><span>${label}</span><textarea data-journal-field="${key}">${escapeHtml(value)}</textarea></label>`;
+    return `<label class="${extra}"><span>${label}</span><textarea data-journal-field="${key}" data-autosize>${escapeHtml(value)}</textarea></label>`;
   }
 
   function renderCoach() {
@@ -472,7 +482,7 @@
             <option value="board">64分解</option>
             <option value="journal">日誌の振り返り</option>
           </select>
-          <textarea data-coach-message placeholder="例: 健康の目標を作りたい。4観点と64分解を一緒に考えてほしい。"></textarea>
+          <textarea data-coach-message data-autosize placeholder="例: 健康の目標を作りたい。4観点と64分解を一緒に考えてほしい。"></textarea>
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
           <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
@@ -509,6 +519,7 @@
     goal.perspectives[key] = next;
     if (textarea) {
       textarea.value = next;
+      resizeAutosizeTextarea(textarea);
       textarea.focus();
       textarea.setSelectionRange(next.length, next.length);
     }
@@ -624,6 +635,7 @@
 
     root.addEventListener("input", (event) => {
       const target = event.target;
+      if (target.matches("textarea[data-autosize]")) resizeAutosizeTextarea(target);
       if (target.matches("[data-goal-field]")) updateGoalField(target);
       if (target.matches("[data-perspective-field]")) {
         activeGoal().perspectives[target.dataset.perspectiveField] = target.value;

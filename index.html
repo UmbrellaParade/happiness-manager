@@ -119,8 +119,13 @@
     }
 
     .field textarea {
-      resize: vertical;
       min-height: 92px;
+      overflow: hidden;
+      resize: none;
+    }
+
+    .field textarea[data-autosize] {
+      height: auto;
     }
 
     .profile-select-row select:focus,
@@ -539,7 +544,12 @@
       color: var(--ink);
       padding: 10px 11px;
       outline: none;
-      resize: vertical;
+      overflow: hidden;
+      resize: none;
+    }
+
+    .perspective-card textarea[data-autosize] {
+      height: auto;
     }
 
     .perspective-card textarea:focus {
@@ -1617,7 +1627,7 @@
                   </label>
                   <button type="button" class="bullet-button" data-add-bullet="${key}">・追加</button>
                 </div>
-                <textarea id="perspective-${key}" data-perspective-field="${key}" placeholder="・">${escapeHtml(goal.perspectives[key])}</textarea>
+                <textarea id="perspective-${key}" data-perspective-field="${key}" data-autosize placeholder="・">${escapeHtml(goal.perspectives[key])}</textarea>
               </div>
             `).join("")}
           </div>
@@ -1637,6 +1647,7 @@
       textarea.value = next;
       goal.perspectives[key] = next;
       saveState();
+      resizeAutosizeTextarea(textarea);
       textarea.focus();
       textarea.setSelectionRange(next.length, next.length);
     }
@@ -1646,7 +1657,7 @@
         return `
           <div class="field ${extraClass}">
             <label for="goal-${key}">${label}</label>
-            <textarea id="goal-${key}" data-goal-field="${key}">${escapeHtml(value)}</textarea>
+            <textarea id="goal-${key}" data-goal-field="${key}" data-autosize>${escapeHtml(value)}</textarea>
           </div>
         `;
       }
@@ -1829,7 +1840,7 @@
       return `
         <div class="field ${extraClass}">
           <label for="journal-${key}">${label}</label>
-          <textarea id="journal-${key}" data-journal-field="${key}">${escapeHtml(value)}</textarea>
+          <textarea id="journal-${key}" data-journal-field="${key}" data-autosize>${escapeHtml(value)}</textarea>
         </div>
       `;
     }
@@ -1895,6 +1906,17 @@
       if (activeTab === "board") renderBoard();
       if (activeTab === "journal") renderJournal();
       if (activeTab === "family") renderFamily();
+      resizeAutosizeTextareas($(`#view-${activeTab}`));
+    }
+
+    function resizeAutosizeTextarea(textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
+    function resizeAutosizeTextareas(root) {
+      if (!root) return;
+      root.querySelectorAll("textarea[data-autosize]").forEach(resizeAutosizeTextarea);
     }
 
     function refreshVisible() {
@@ -2047,6 +2069,10 @@
     });
 
     document.addEventListener("input", (event) => {
+      if (event.target.matches("textarea[data-autosize]")) {
+        resizeAutosizeTextarea(event.target);
+      }
+
       const dailyField = event.target.dataset.dailyField;
       if (dailyField) {
         const record = dailyRecord();
