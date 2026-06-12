@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.2';
+    private const VERSION = '0.1.3';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -21,6 +21,7 @@ final class Happiness_Manager_Plugin {
     private const UPDATE_CACHE_KEY = 'hm_github_latest_release';
     private const STATE_META_KEY = 'hm_state_v1';
     private const OPTION_FRONTEND_PAGE_ID = 'hm_frontend_page_id';
+    private const OPTION_FRONTEND_PAGE_DISABLED = 'hm_frontend_page_disabled';
     private const OPTION_API_KEY = 'hm_openai_api_key';
     private const OPTION_MODEL = 'hm_openai_model';
 
@@ -28,10 +29,12 @@ final class Happiness_Manager_Plugin {
         add_action('init', [__CLASS__, 'register_journal_post_type']);
         add_action('admin_menu', [__CLASS__, 'register_admin_page']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
-        add_action('admin_init', [__CLASS__, 'maybe_create_frontend_page']);
         add_action('rest_api_init', [__CLASS__, 'register_rest_routes']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_frontend_assets']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
+        add_action('admin_post_hm_create_frontend_page', [__CLASS__, 'handle_create_frontend_page']);
+        add_action('wp_trash_post', [__CLASS__, 'mark_frontend_page_removed']);
+        add_action('before_delete_post', [__CLASS__, 'mark_frontend_page_removed']);
         add_shortcode('happiness_manager', [__CLASS__, 'render_shortcode']);
         add_filter('pre_set_site_transient_update_plugins', [__CLASS__, 'check_for_updates']);
         add_filter('plugins_api', [__CLASS__, 'plugin_update_info'], 20, 3);
@@ -41,7 +44,7 @@ final class Happiness_Manager_Plugin {
     public static function activate(): void {
         add_option(self::OPTION_MODEL, 'gpt-5-mini', '', false);
         add_option(self::OPTION_API_KEY, '', '', false);
-        self::ensure_frontend_page();
+        self::ensure_frontend_page(true);
         self::register_journal_post_type();
         flush_rewrite_rules();
     }
@@ -75,10 +78,25 @@ final class Happiness_Manager_Plugin {
         ]);
     }
 
-    public static function maybe_create_frontend_page(): void {
-        if (current_user_can('publish_pages')) {
-            self::ensure_frontend_page();
+    public static function handle_create_frontend_page(): void {
+        if (!current_user_can('publish_pages')) {
+            wp_die(esc_html__('You do not have permission to create pages.', 'happiness-manager'));
         }
+
+        check_admin_referer('hm_create_frontend_page');
+        $page_id = self::ensure_frontend_page(true);
+        $status = $page_id > 0 ? 'created' : 'failed';
+        wp_safe_redirect(add_query_arg('hm_frontend_page', $status, admin_url('admin.php?page=happiness-manager')));
+        exit;
+    }
+
+    public static function mark_frontend_page_removed($post_id): void {
+        if ((int) $post_id !== (int) get_option(self::OPTION_FRONTEND_PAGE_ID, 0)) {
+            return;
+        }
+
+        update_option(self::OPTION_FRONTEND_PAGE_DISABLED, '1', false);
+        delete_option(self::OPTION_FRONTEND_PAGE_ID);
     }
 
     public static function sanitize_model($value): string {
@@ -170,9 +188,23 @@ final class Happiness_Manager_Plugin {
         ]);
     }
 
-    private static function ensure_frontend_page(): int {
+    private static function ensure_frontend_page(bool $force = false): int {
+        if (!$force && get_option(self::OPTION_FRONTEND_PAGE_DISABLED, '') === '1') {
+            return 0;
+        }
+
+        if ($force) {
+            delete_option(self::OPTION_FRONTEND_PAGE_DISABLED);
+        }
+
+        $existing_page_id = self::find_frontend_page_id();
+        if ($existing_page_id > 0) {
+            return $existing_page_id;
+        }
+
         $page_id = (int) get_option(self::OPTION_FRONTEND_PAGE_ID, 0);
-        if ($page_id > 0 && get_post($page_id)) {
+        $page = $page_id > 0 ? get_post($page_id) : null;
+        if ($page instanceof WP_Post && $page->post_status !== 'trash') {
             return $page_id;
         }
 
@@ -206,13 +238,29 @@ final class Happiness_Manager_Plugin {
         return 0;
     }
 
+    private static function find_frontend_page_id(): int {
+        $page_id = (int) get_option(self::OPTION_FRONTEND_PAGE_ID, 0);
+        $page = $page_id > 0 ? get_post($page_id) : null;
+        if ($page instanceof WP_Post && $page->post_status !== 'trash') {
+            return $page_id;
+        }
+
+        $existing = get_page_by_path('happiness-manager');
+        if ($existing instanceof WP_Post && $existing->post_status !== 'trash' && has_shortcode((string) $existing->post_content, 'happiness_manager')) {
+            update_option(self::OPTION_FRONTEND_PAGE_ID, (int) $existing->ID, false);
+            return (int) $existing->ID;
+        }
+
+        return 0;
+    }
+
     private static function frontend_page_url(): string {
-        $page_id = self::ensure_frontend_page();
+        $page_id = self::find_frontend_page_id();
         if ($page_id > 0) {
             return (string) get_permalink($page_id);
         }
 
-        return home_url('/');
+        return '';
     }
 
     public static function check_for_updates($transient) {
@@ -353,13 +401,20 @@ final class Happiness_Manager_Plugin {
         }
 
         $has_key = self::has_api_key();
+        $frontend_url = self::frontend_page_url();
+        $create_page_url = wp_nonce_url(admin_url('admin-post.php?action=hm_create_frontend_page'), 'hm_create_frontend_page');
         ?>
         <div class="wrap hm-admin-wrap">
             <h1>Happiness Manager</h1>
 
             <p>
-                <a class="button button-primary" href="<?php echo esc_url(self::frontend_page_url()); ?>" target="_blank" rel="noopener">スマホ用ページを開く</a>
-                <span class="description">サイト側で日誌を直接書けるページです。</span>
+                <?php if ($frontend_url !== '') : ?>
+                    <a class="button button-primary" href="<?php echo esc_url($frontend_url); ?>" target="_blank" rel="noopener">スマホ用ページを開く</a>
+                    <span class="description">サイト側で日誌を直接書けるページです。</span>
+                <?php else : ?>
+                    <a class="button button-primary" href="<?php echo esc_url($create_page_url); ?>">スマホ用ページを作成</a>
+                    <span class="description">削除した固定ページは自動で復活しません。必要な場合だけ作成してください。</span>
+                <?php endif; ?>
             </p>
 
             <details class="hm-settings-box">
