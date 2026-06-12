@@ -1,0 +1,1748 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Happiness Manager</title>
+  <meta name="description" content="家族で使う、目的・目標・行動・日誌の実践ノート。入力内容はこの端末のブラウザに保存されます。">
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --paper: #ffffff;
+      --paper-soft: #f9fafb;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e1ea;
+      --green: #2f7c68;
+      --blue: #2f68b8;
+      --coral: #cc5d4b;
+      --amber: #b8791f;
+      --shadow: 0 14px 34px rgba(23, 32, 51, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Yu Gothic UI", "Hiragino Sans", Meiryo, system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 278px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #fbfcfd;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .brand {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand__title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .brand__note {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .profile-switcher {
+      padding: 16px 16px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .profile-label {
+      display: block;
+      margin: 0 0 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .profile-select-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 38px;
+      gap: 8px;
+    }
+
+    .profile-select-row select,
+    .top-date input,
+    .field input,
+    .field textarea,
+    .field select,
+    .compact-input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 92px;
+    }
+
+    .profile-select-row select:focus,
+    .top-date input:focus,
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus,
+    .compact-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(47, 104, 184, 0.14);
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      display: inline-grid;
+      place-items: center;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .icon-button:hover {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .nav {
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink);
+      border-radius: var(--radius);
+      min-height: 42px;
+      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      text-align: left;
+    }
+
+    .nav button:hover {
+      background: #edf3f7;
+    }
+
+    .nav button.active {
+      background: #e8f2ef;
+      border-color: #c7ded6;
+      color: #1e5f4f;
+      font-weight: 800;
+    }
+
+    .nav-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      display: inline-grid;
+      place-items: center;
+      background: #eef2f7;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .nav button.active .nav-icon {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .side-footer {
+      margin-top: auto;
+      padding: 14px 18px 20px;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      min-height: 68px;
+      padding: 14px 24px;
+      background: rgba(255, 255, 255, 0.86);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .page-title {
+      min-width: 0;
+    }
+
+    .page-title h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .page-title p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 58vw;
+    }
+
+    .top-date {
+      width: 178px;
+      flex: 0 0 auto;
+    }
+
+    .content {
+      width: 100%;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .panel-header {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+
+    .panel-subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .field label {
+      color: #344054;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .goal-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .goal-item {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px;
+      text-align: left;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .goal-item.active {
+      border-color: #9fcabd;
+      background: #f0f8f5;
+    }
+
+    .goal-item strong {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .goal-item span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .primary-button,
+    .ghost-button,
+    .danger-button {
+      border-radius: var(--radius);
+      min-height: 38px;
+      padding: 8px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .primary-button {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .primary-button:hover {
+      background: #256b5a;
+    }
+
+    .ghost-button {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .ghost-button:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .danger-button {
+      background: #fff;
+      color: #a33b2e;
+      border-color: #e4b8b0;
+    }
+
+    .danger-button:hover {
+      background: #fff5f3;
+    }
+
+    .purpose-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .purpose-grid .wide {
+      grid-column: 1 / -1;
+    }
+
+    .board-layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.05fr) minmax(310px, 0.95fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .window-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(112px, auto));
+      gap: 10px;
+    }
+
+    .window-cell {
+      min-width: 0;
+      min-height: 112px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      color: var(--ink);
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    button.window-cell:hover,
+    button.window-cell.active {
+      border-color: var(--green);
+      box-shadow: inset 0 0 0 2px rgba(47, 124, 104, 0.14);
+    }
+
+    .window-cell.center {
+      background: #eaf4f1;
+      border-color: #bdd9d0;
+    }
+
+    .cell-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .cell-title {
+      display: block;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .cell-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-number {
+      width: 26px;
+      height: 26px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #eef2f7;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .toggle-pill {
+      min-width: 86px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--muted);
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .toggle-pill.active {
+      border-color: #98c7b9;
+      background: #e8f4f0;
+      color: #1e5f4f;
+    }
+
+    .routine-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .routine-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .routine-row input[type="checkbox"] {
+      width: 19px;
+      height: 19px;
+      accent-color: var(--green);
+    }
+
+    .routine-name {
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .routine-meta {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .empty {
+      border: 1px dashed #b8c2cf;
+      border-radius: var(--radius);
+      padding: 18px;
+      color: var(--muted);
+      background: var(--paper-soft);
+      text-align: center;
+    }
+
+    .slider-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .slider-field {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr) 36px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .slider-field label {
+      font-weight: 800;
+      color: #344054;
+    }
+
+    .slider-field input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+    }
+
+    .score {
+      width: 36px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      background: #eef2f7;
+      border-radius: 7px;
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .journal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .journal-grid .wide {
+      grid-column: 1 / -1;
+    }
+
+    .profile-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .profile-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 38px;
+      gap: 9px;
+      align-items: center;
+    }
+
+    .color-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--line);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(360px, calc(100vw - 36px));
+      background: #172033;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 20;
+      pointer-events: none;
+      overflow-wrap: anywhere;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1040px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+
+      .nav {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        overflow-x: auto;
+      }
+
+      .side-footer {
+        display: none;
+      }
+
+      .profile-switcher {
+        border-bottom: none;
+      }
+
+      .board-layout,
+      .grid.two,
+      .grid.three,
+      .stat-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 14px 16px;
+      }
+
+      .top-date {
+        width: 100%;
+      }
+
+      .page-title p {
+        max-width: 100%;
+      }
+
+      .content {
+        padding: 16px;
+      }
+
+      .brand {
+        padding: 18px 16px 12px;
+      }
+
+      .nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .purpose-grid,
+      .journal-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .window-grid {
+        grid-template-rows: none;
+      }
+
+      .window-cell {
+        min-height: 94px;
+      }
+
+      .action-row {
+        grid-template-columns: 26px minmax(0, 1fr);
+      }
+
+      .action-row .toggle-pill {
+        grid-column: 2;
+        width: max-content;
+      }
+
+      .routine-row {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .routine-row .icon-button {
+        grid-column: 2;
+        width: 34px;
+        height: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1 class="brand__title">Happiness Manager</h1>
+        <p class="brand__note">目的、目標、行動、振り返りを一つに。</p>
+      </div>
+
+      <div class="profile-switcher">
+        <label class="profile-label" for="profileSelect">メンバー</label>
+        <div class="profile-select-row">
+          <select id="profileSelect"></select>
+          <button class="icon-button" id="quickAddProfile" type="button" title="メンバー追加" aria-label="メンバー追加">+</button>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="画面">
+        <button type="button" data-tab="dashboard" class="active"><span class="nav-icon">今</span><span>今日</span></button>
+        <button type="button" data-tab="goals"><span class="nav-icon">目</span><span>目的・目標</span></button>
+        <button type="button" data-tab="board"><span class="nav-icon">64</span><span>64分解</span></button>
+        <button type="button" data-tab="journal"><span class="nav-icon">日</span><span>日誌</span></button>
+        <button type="button" data-tab="family"><span class="nav-icon">家</span><span>家族・保存</span></button>
+      </nav>
+
+      <div class="side-footer" id="storageStatus">
+        保存先: この端末のブラウザ。共有や送信は自動では行いません。
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="page-title">
+          <h2 id="screenTitle">今日</h2>
+          <p id="screenSubtitle"></p>
+        </div>
+        <div class="top-date">
+          <input type="date" id="activeDate" aria-label="日付">
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view active" id="view-dashboard"></section>
+        <section class="view" id="view-goals"></section>
+        <section class="view" id="view-board"></section>
+        <section class="view" id="view-journal"></section>
+        <section class="view" id="view-family"></section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "family-practice-note-v1";
+    const COLORS = ["#2f7c68", "#2f68b8", "#cc5d4b", "#b8791f", "#6b5ca5", "#3b7b92"];
+    const TITLES = {
+      dashboard: "今日",
+      goals: "目的・目標",
+      board: "64分解",
+      journal: "日誌",
+      family: "家族・保存"
+    };
+
+    let activeTab = "dashboard";
+    let selectedThemeIndex = 0;
+    let activeDate = isoToday();
+    let toastTimer = null;
+    let storageAvailable = true;
+    let memoryStore = null;
+
+    function uid(prefix) {
+      return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function isoToday() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function blankThemes() {
+      return Array.from({ length: 8 }, () => ({
+        title: "",
+        actions: Array.from({ length: 8 }, () => ({ text: "", routine: false }))
+      }));
+    }
+
+    function createGoal(profileId) {
+      return {
+        id: uid("goal"),
+        profileId,
+        title: "新しい目標",
+        target: "",
+        deadline: "",
+        measure: "",
+        purpose: "",
+        futureSelf: "",
+        contribution: "",
+        reason: "",
+        obstacles: "",
+        support: "",
+        firstStep: "",
+        themes: blankThemes(),
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    function defaultState() {
+      const profileId = uid("profile");
+      const goal = createGoal(profileId);
+      goal.title = "最初の目標";
+      goal.purpose = "この目標を通して大切にしたい理由を書く";
+      goal.themes[0].title = "体調";
+      goal.themes[0].actions[0] = { text: "睡眠時間を記録する", routine: true };
+      goal.themes[1].title = "準備";
+      goal.themes[1].actions[0] = { text: "明日の一手を決める", routine: true };
+      return {
+        profiles: [{ id: profileId, name: "じぶん", color: COLORS[0] }],
+        activeProfileId: profileId,
+        activeGoalId: goal.id,
+        goals: [goal],
+        customRoutines: [],
+        daily: {},
+        journals: {}
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = readStoredState();
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return normalizeState(parsed);
+      } catch (error) {
+        console.warn(error);
+        return defaultState();
+      }
+    }
+
+    function normalizeState(data) {
+      const state = {
+        profiles: Array.isArray(data.profiles) ? data.profiles : [],
+        activeProfileId: data.activeProfileId || "",
+        activeGoalId: data.activeGoalId || "",
+        goals: Array.isArray(data.goals) ? data.goals : [],
+        customRoutines: Array.isArray(data.customRoutines) ? data.customRoutines : [],
+        daily: data.daily && typeof data.daily === "object" ? data.daily : {},
+        journals: data.journals && typeof data.journals === "object" ? data.journals : {}
+      };
+
+      if (!state.profiles.length) {
+        const profileId = uid("profile");
+        state.profiles.push({ id: profileId, name: "じぶん", color: COLORS[0] });
+        state.activeProfileId = profileId;
+      }
+
+      if (!state.activeProfileId || !state.profiles.some((p) => p.id === state.activeProfileId)) {
+        state.activeProfileId = state.profiles[0].id;
+      }
+
+      state.goals.forEach((goal) => {
+        goal.themes = Array.isArray(goal.themes) ? goal.themes.slice(0, 8) : blankThemes();
+        while (goal.themes.length < 8) goal.themes.push({ title: "", actions: [] });
+        goal.themes.forEach((theme) => {
+          theme.actions = Array.isArray(theme.actions) ? theme.actions.slice(0, 8) : [];
+          while (theme.actions.length < 8) theme.actions.push({ text: "", routine: false });
+          theme.actions = theme.actions.map((action) => ({
+            text: action && action.text ? String(action.text) : "",
+            routine: Boolean(action && action.routine)
+          }));
+        });
+      });
+
+      if (!state.goals.some((g) => g.profileId === state.activeProfileId)) {
+        const goal = createGoal(state.activeProfileId);
+        state.goals.push(goal);
+        state.activeGoalId = goal.id;
+      }
+
+      if (!state.activeGoalId || !state.goals.some((g) => g.id === state.activeGoalId && g.profileId === state.activeProfileId)) {
+        state.activeGoalId = state.goals.find((g) => g.profileId === state.activeProfileId).id;
+      }
+
+      return state;
+    }
+
+    let state = loadState();
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function readStoredState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        storageAvailable = true;
+        return raw;
+      } catch (error) {
+        storageAvailable = false;
+        return memoryStore;
+      }
+    }
+
+    function writeStoredState(raw) {
+      memoryStore = raw;
+      try {
+        localStorage.setItem(STORAGE_KEY, raw);
+        storageAvailable = true;
+      } catch (error) {
+        storageAvailable = false;
+      }
+    }
+
+    function saveState() {
+      writeStoredState(JSON.stringify(state));
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function showToast(message) {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function activeProfile() {
+      return state.profiles.find((p) => p.id === state.activeProfileId) || state.profiles[0];
+    }
+
+    function profileGoals(profileId = state.activeProfileId) {
+      return state.goals.filter((goal) => goal.profileId === profileId);
+    }
+
+    function activeGoal() {
+      let goal = state.goals.find((g) => g.id === state.activeGoalId && g.profileId === state.activeProfileId);
+      if (!goal) {
+        goal = profileGoals()[0];
+        state.activeGoalId = goal.id;
+      }
+      return goal;
+    }
+
+    function dayKey(date = activeDate, profileId = state.activeProfileId) {
+      return `${profileId}|${date}`;
+    }
+
+    function journalKey(date = activeDate, profileId = state.activeProfileId) {
+      return `${profileId}|${date}`;
+    }
+
+    function dailyRecord(date = activeDate, profileId = state.activeProfileId) {
+      const key = dayKey(date, profileId);
+      if (!state.daily[key]) {
+        state.daily[key] = {
+          mood: 3,
+          energy: 3,
+          load: 3,
+          focus: 3,
+          checks: {}
+        };
+      }
+      return state.daily[key];
+    }
+
+    function journalRecord(date = activeDate, profileId = state.activeProfileId) {
+      const key = journalKey(date, profileId);
+      if (!state.journals[key]) {
+        state.journals[key] = {
+          best: "",
+          learned: "",
+          next: "",
+          gratitude: "",
+          selfTalk: "",
+          memo: ""
+        };
+      }
+      return state.journals[key];
+    }
+
+    function routineItems(profileId = state.activeProfileId) {
+      const items = [];
+      profileGoals(profileId).forEach((goal) => {
+        goal.themes.forEach((theme, themeIndex) => {
+          theme.actions.forEach((action, actionIndex) => {
+            if (!action.routine || !action.text.trim()) return;
+            items.push({
+              id: `action:${goal.id}:${themeIndex}:${actionIndex}`,
+              text: action.text.trim(),
+              goalTitle: goal.title || "目標",
+              themeTitle: theme.title || `テーマ${themeIndex + 1}`
+            });
+          });
+        });
+      });
+
+      state.customRoutines
+        .filter((item) => item.profileId === profileId)
+        .forEach((item) => {
+          items.push({
+            id: `custom:${item.id}`,
+            text: item.text,
+            goalTitle: "追加",
+            themeTitle: "毎日"
+          });
+        });
+
+      return items;
+    }
+
+    function completionFor(date, profileId = state.activeProfileId) {
+      const items = routineItems(profileId);
+      if (!items.length) return { done: 0, total: 0, rate: 0 };
+      const record = state.daily[dayKey(date, profileId)] || { checks: {} };
+      const done = items.filter((item) => Boolean(record.checks[item.id])).length;
+      return { done, total: items.length, rate: Math.round((done / items.length) * 100) };
+    }
+
+    function averageSevenDays(profileId = state.activeProfileId) {
+      const dates = Array.from({ length: 7 }, (_, index) => {
+        const d = new Date(`${activeDate}T00:00:00`);
+        d.setDate(d.getDate() - index);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      });
+      const rates = dates.map((date) => completionFor(date, profileId).rate);
+      if (!rates.length) return 0;
+      return Math.round(rates.reduce((sum, rate) => sum + rate, 0) / rates.length);
+    }
+
+    function journalCount(profileId = state.activeProfileId) {
+      return Object.keys(state.journals).filter((key) => {
+        if (!key.startsWith(`${profileId}|`)) return false;
+        const item = state.journals[key];
+        return Object.values(item).some((value) => String(value || "").trim());
+      }).length;
+    }
+
+    function setTab(tab) {
+      activeTab = tab;
+      $$(".nav button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tab === tab);
+      });
+      $$(".view").forEach((view) => view.classList.toggle("active", view.id === `view-${tab}`));
+      render();
+    }
+
+    function renderShell() {
+      const profileSelect = $("#profileSelect");
+      profileSelect.innerHTML = state.profiles.map((profile) => (
+        `<option value="${profile.id}" ${profile.id === state.activeProfileId ? "selected" : ""}>${escapeHtml(profile.name)}</option>`
+      )).join("");
+      $("#activeDate").value = activeDate;
+      $("#screenTitle").textContent = TITLES[activeTab];
+      $("#screenSubtitle").textContent = `${activeProfile().name} / ${activeGoal().title || "目標未設定"}`;
+      $("#storageStatus").textContent = storageAvailable
+        ? "保存先: この端末のブラウザ。共有や送信は自動では行いません。"
+        : "保存先: 一時メモリ。書き出しでバックアップしてください。";
+    }
+
+    function renderStats() {
+      const today = completionFor(activeDate);
+      const routines = routineItems();
+      return `
+        <div class="stat-row">
+          <div class="stat"><b>${today.done}/${today.total}</b><span>今日のルーティン</span></div>
+          <div class="stat"><b>${today.rate}%</b><span>今日の完了率</span></div>
+          <div class="stat"><b>${averageSevenDays()}%</b><span>7日平均</span></div>
+          <div class="stat"><b>${journalCount()}</b><span>日誌を書いた日</span></div>
+        </div>
+      `;
+    }
+
+    function renderSliders() {
+      const record = dailyRecord();
+      const sliders = [
+        ["mood", "気分"],
+        ["energy", "体力"],
+        ["load", "負荷"],
+        ["focus", "集中"]
+      ];
+      return `
+        <div class="slider-grid">
+          ${sliders.map(([key, label]) => `
+            <div class="slider-field">
+              <label for="slider-${key}">${label}</label>
+              <input type="range" min="1" max="5" value="${record[key]}" id="slider-${key}" data-daily-field="${key}">
+              <span class="score" id="score-${key}">${record[key]}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderRoutineList(options = {}) {
+      const items = routineItems();
+      const record = dailyRecord();
+      if (!items.length) {
+        return `<div class="empty">64分解で行動を「ルーティン」にすると、ここに並びます。</div>`;
+      }
+      return `
+        <div class="routine-list">
+          ${items.map((item) => `
+            <label class="routine-row">
+              <input type="checkbox" class="routine-check" data-routine-id="${escapeHtml(item.id)}" ${record.checks[item.id] ? "checked" : ""}>
+              <span>
+                <span class="routine-name">${escapeHtml(item.text)}</span>
+                <span class="routine-meta">${escapeHtml(item.goalTitle)} / ${escapeHtml(item.themeTitle)}</span>
+              </span>
+              ${options.manage && item.id.startsWith("custom:") ? `<button class="icon-button delete-custom" type="button" data-custom-id="${escapeHtml(item.id.slice(7))}" title="削除" aria-label="削除">×</button>` : ""}
+            </label>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderDashboard() {
+      $("#view-dashboard").innerHTML = `
+        ${renderStats()}
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">コンディション</h3>
+                <p class="panel-subtitle">${escapeHtml(activeDate)}</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderSliders()}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">今日のルーティン</h3>
+                <p class="panel-subtitle">64分解から選んだ毎日の行動</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderRoutineList()}
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderGoalList() {
+      const goals = profileGoals();
+      return `
+        <div class="goal-list">
+          ${goals.map((goal) => `
+            <button type="button" class="goal-item ${goal.id === state.activeGoalId ? "active" : ""}" data-goal-id="${goal.id}">
+              <strong>${escapeHtml(goal.title || "無題の目標")}</strong>
+              <span>${goal.deadline ? escapeHtml(goal.deadline) : "期限なし"}</span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderGoals() {
+      const goal = activeGoal();
+      $("#view-goals").innerHTML = `
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">目標リスト</h3>
+                <p class="panel-subtitle">${escapeHtml(activeProfile().name)}</p>
+              </div>
+              <button class="icon-button" id="addGoal" type="button" title="目標追加" aria-label="目標追加">+</button>
+            </div>
+            <div class="panel-body">
+              ${renderGoalList()}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">中心設定</h3>
+                <p class="panel-subtitle">目標の芯を言葉にする</p>
+              </div>
+              <button class="danger-button" id="deleteGoal" type="button">削除</button>
+            </div>
+            <div class="panel-body">
+              <div class="purpose-grid">
+                ${goalField("title", "目標名", goal.title, "input")}
+                ${goalField("deadline", "期限", goal.deadline, "date")}
+                ${goalField("target", "達成したい結果", goal.target, "textarea", "wide")}
+                ${goalField("measure", "達成のものさし", goal.measure, "textarea")}
+                ${goalField("purpose", "何のために", goal.purpose, "textarea")}
+                ${goalField("futureSelf", "達成した時の自分", goal.futureSelf, "textarea")}
+                ${goalField("contribution", "誰にどんな良い影響があるか", goal.contribution, "textarea")}
+                ${goalField("reason", "折れそうな時に戻る理由", goal.reason, "textarea")}
+                ${goalField("obstacles", "想定される壁", goal.obstacles, "textarea")}
+                ${goalField("support", "支え・約束", goal.support, "textarea")}
+                ${goalField("firstStep", "最初の一手", goal.firstStep, "textarea", "wide")}
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function goalField(key, label, value, type, extraClass = "") {
+      if (type === "textarea") {
+        return `
+          <div class="field ${extraClass}">
+            <label for="goal-${key}">${label}</label>
+            <textarea id="goal-${key}" data-goal-field="${key}">${escapeHtml(value)}</textarea>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="field ${extraClass}">
+          <label for="goal-${key}">${label}</label>
+          <input id="goal-${key}" type="${type}" data-goal-field="${key}" value="${escapeHtml(value)}">
+        </div>
+      `;
+    }
+
+    function renderBoard() {
+      const goal = activeGoal();
+      const selected = goal.themes[selectedThemeIndex] || goal.themes[0];
+      const gridMap = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+      $("#view-board").innerHTML = `
+        <div class="board-layout">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">8テーマ</h3>
+                <p class="panel-subtitle">${escapeHtml(goal.title || "目標未設定")}</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="window-grid">
+                ${gridMap.map((item) => {
+                  if (item === "center") {
+                    return `
+                      <div class="window-cell center">
+                        <span class="cell-kicker">中心</span>
+                        <span class="cell-title">${escapeHtml(goal.title || "目標を書く")}</span>
+                        <span class="cell-count">${escapeHtml(goal.deadline || "期限なし")}</span>
+                      </div>
+                    `;
+                  }
+                  const theme = goal.themes[item];
+                  const actionCount = theme.actions.filter((action) => action.text.trim()).length;
+                  return `
+                    <button type="button" class="window-cell ${selectedThemeIndex === item ? "active" : ""}" data-theme-index="${item}">
+                      <span class="cell-kicker">テーマ ${item + 1}</span>
+                      <span class="cell-title">${escapeHtml(theme.title || "未設定")}</span>
+                      <span class="cell-count">${actionCount}/8 行動</span>
+                    </button>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">行動8つ</h3>
+                <p class="panel-subtitle">選択中: テーマ ${selectedThemeIndex + 1}</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="field" style="margin-bottom: 14px;">
+                <label for="themeTitle">テーマ名</label>
+                <input id="themeTitle" class="compact-input" data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}">
+              </div>
+              <div class="action-list">
+                ${selected.actions.map((action, index) => `
+                  <div class="action-row">
+                    <span class="action-number">${index + 1}</span>
+                    <input class="compact-input" data-action-index="${index}" value="${escapeHtml(action.text)}" aria-label="行動 ${index + 1}">
+                    <button type="button" class="toggle-pill ${action.routine ? "active" : ""}" data-routine-action="${index}">
+                      ${action.routine ? "毎日" : "候補"}
+                    </button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderJournal() {
+      const journal = journalRecord();
+      $("#view-journal").innerHTML = `
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">日誌</h3>
+              <p class="panel-subtitle">${escapeHtml(activeDate)}</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="journal-grid">
+              ${journalField("best", "今日できたこと", journal.best)}
+              ${journalField("learned", "気づき・学び", journal.learned)}
+              ${journalField("next", "明日の一手", journal.next)}
+              ${journalField("gratitude", "感謝", journal.gratitude)}
+              ${journalField("selfTalk", "自分への言葉", journal.selfTalk, "wide")}
+              ${journalField("memo", "メモ", journal.memo, "wide")}
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function journalField(key, label, value, extraClass = "") {
+      return `
+        <div class="field ${extraClass}">
+          <label for="journal-${key}">${label}</label>
+          <textarea id="journal-${key}" data-journal-field="${key}">${escapeHtml(value)}</textarea>
+        </div>
+      `;
+    }
+
+    function renderFamily() {
+      $("#view-family").innerHTML = `
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">メンバー</h3>
+                <p class="panel-subtitle">家族内で切り替える</p>
+              </div>
+              <button class="icon-button" id="addProfile" type="button" title="メンバー追加" aria-label="メンバー追加">+</button>
+            </div>
+            <div class="panel-body">
+              <div class="profile-list">
+                ${state.profiles.map((profile) => `
+                  <div class="profile-row">
+                    <span class="color-dot" style="background:${escapeHtml(profile.color)}"></span>
+                    <input class="compact-input" data-profile-name="${profile.id}" value="${escapeHtml(profile.name)}" aria-label="メンバー名">
+                    <button class="icon-button delete-profile" type="button" data-profile-id="${profile.id}" title="削除" aria-label="削除">×</button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">保存</h3>
+                <p class="panel-subtitle">バックアップと復元</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field">
+                  <label for="customRoutineText">追加ルーティン</label>
+                  <div class="profile-select-row">
+                    <input id="customRoutineText" class="compact-input" value="" placeholder="例: 夜に翌日の準備をする">
+                    <button class="icon-button" id="addCustomRoutine" type="button" title="追加" aria-label="追加">+</button>
+                  </div>
+                </div>
+                ${renderRoutineList({ manage: true })}
+                <div class="button-row">
+                  <button class="ghost-button" id="exportData" type="button">書き出し</button>
+                  <button class="ghost-button" id="importDataButton" type="button">読み込み</button>
+                  <button class="danger-button" id="resetData" type="button">初期化</button>
+                  <input class="file-input" id="importData" type="file" accept="application/json">
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function render() {
+      renderShell();
+      if (activeTab === "dashboard") renderDashboard();
+      if (activeTab === "goals") renderGoals();
+      if (activeTab === "board") renderBoard();
+      if (activeTab === "journal") renderJournal();
+      if (activeTab === "family") renderFamily();
+    }
+
+    function refreshVisible() {
+      saveState();
+      render();
+    }
+
+    document.addEventListener("click", (event) => {
+      const tabButton = event.target.closest("[data-tab]");
+      if (tabButton) {
+        setTab(tabButton.dataset.tab);
+        return;
+      }
+
+      const goalItem = event.target.closest("[data-goal-id]");
+      if (goalItem) {
+        state.activeGoalId = goalItem.dataset.goalId;
+        selectedThemeIndex = 0;
+        refreshVisible();
+        return;
+      }
+
+      const themeCell = event.target.closest("[data-theme-index]");
+      if (themeCell) {
+        selectedThemeIndex = Number(themeCell.dataset.themeIndex);
+        renderBoard();
+        return;
+      }
+
+      const routineButton = event.target.closest("[data-routine-action]");
+      if (routineButton) {
+        const goal = activeGoal();
+        const action = goal.themes[selectedThemeIndex].actions[Number(routineButton.dataset.routineAction)];
+        action.routine = !action.routine;
+        saveState();
+        renderBoard();
+        showToast(action.routine ? "ルーティンにしました" : "候補に戻しました");
+        return;
+      }
+
+      if (event.target.closest("#addGoal")) {
+        const goal = createGoal(state.activeProfileId);
+        state.goals.push(goal);
+        state.activeGoalId = goal.id;
+        selectedThemeIndex = 0;
+        refreshVisible();
+        showToast("目標を追加しました");
+        return;
+      }
+
+      if (event.target.closest("#deleteGoal")) {
+        const goals = profileGoals();
+        if (goals.length <= 1) {
+          showToast("目標は1つ以上必要です");
+          return;
+        }
+        if (!confirm("この目標を削除しますか？")) return;
+        state.goals = state.goals.filter((goal) => goal.id !== state.activeGoalId);
+        state.activeGoalId = profileGoals()[0].id;
+        selectedThemeIndex = 0;
+        refreshVisible();
+        showToast("削除しました");
+        return;
+      }
+
+      if (event.target.closest("#quickAddProfile") || event.target.closest("#addProfile")) {
+        addProfile();
+        return;
+      }
+
+      const deleteProfile = event.target.closest(".delete-profile");
+      if (deleteProfile) {
+        const profileId = deleteProfile.dataset.profileId;
+        if (state.profiles.length <= 1) {
+          showToast("メンバーは1人以上必要です");
+          return;
+        }
+        if (!confirm("このメンバーと関連データを削除しますか？")) return;
+        state.profiles = state.profiles.filter((profile) => profile.id !== profileId);
+        state.goals = state.goals.filter((goal) => goal.profileId !== profileId);
+        state.customRoutines = state.customRoutines.filter((item) => item.profileId !== profileId);
+        Object.keys(state.daily).forEach((key) => {
+          if (key.startsWith(`${profileId}|`)) delete state.daily[key];
+        });
+        Object.keys(state.journals).forEach((key) => {
+          if (key.startsWith(`${profileId}|`)) delete state.journals[key];
+        });
+        state.activeProfileId = state.profiles[0].id;
+        state.activeGoalId = profileGoals()[0]?.id || createGoalForActiveProfile();
+        refreshVisible();
+        showToast("メンバーを削除しました");
+        return;
+      }
+
+      if (event.target.closest("#addCustomRoutine")) {
+        const input = $("#customRoutineText");
+        const text = input.value.trim();
+        if (!text) return;
+        state.customRoutines.push({ id: uid("routine"), profileId: state.activeProfileId, text });
+        input.value = "";
+        refreshVisible();
+        showToast("ルーティンを追加しました");
+        return;
+      }
+
+      const deleteCustom = event.target.closest(".delete-custom");
+      if (deleteCustom) {
+        state.customRoutines = state.customRoutines.filter((item) => item.id !== deleteCustom.dataset.customId);
+        refreshVisible();
+        showToast("削除しました");
+        return;
+      }
+
+      if (event.target.closest("#exportData")) {
+        exportData();
+        return;
+      }
+
+      if (event.target.closest("#importDataButton")) {
+        $("#importData").click();
+        return;
+      }
+
+      if (event.target.closest("#resetData")) {
+        if (!confirm("すべてのデータを初期化しますか？")) return;
+        state = defaultState();
+        selectedThemeIndex = 0;
+        activeDate = isoToday();
+        refreshVisible();
+        showToast("初期化しました");
+      }
+    });
+
+    document.addEventListener("input", (event) => {
+      const dailyField = event.target.dataset.dailyField;
+      if (dailyField) {
+        const record = dailyRecord();
+        record[dailyField] = Number(event.target.value);
+        const score = $(`#score-${dailyField}`);
+        if (score) score.textContent = event.target.value;
+        saveState();
+        return;
+      }
+
+      const goalFieldName = event.target.dataset.goalField;
+      if (goalFieldName) {
+        activeGoal()[goalFieldName] = event.target.value;
+        saveState();
+        if (goalFieldName === "title" || goalFieldName === "deadline") {
+          $("#screenSubtitle").textContent = `${activeProfile().name} / ${activeGoal().title || "目標未設定"}`;
+        }
+        return;
+      }
+
+      if (event.target.dataset.themeTitle !== undefined) {
+        activeGoal().themes[selectedThemeIndex].title = event.target.value;
+        saveState();
+        return;
+      }
+
+      if (event.target.dataset.actionIndex !== undefined) {
+        const index = Number(event.target.dataset.actionIndex);
+        activeGoal().themes[selectedThemeIndex].actions[index].text = event.target.value;
+        saveState();
+        return;
+      }
+
+      const journalFieldName = event.target.dataset.journalField;
+      if (journalFieldName) {
+        journalRecord()[journalFieldName] = event.target.value;
+        saveState();
+        return;
+      }
+
+      const profileId = event.target.dataset.profileName;
+      if (profileId) {
+        const profile = state.profiles.find((item) => item.id === profileId);
+        if (profile) profile.name = event.target.value || "無名";
+        saveState();
+        renderShell();
+      }
+    });
+
+    document.addEventListener("change", (event) => {
+      if (event.target.id === "profileSelect") {
+        state.activeProfileId = event.target.value;
+        const firstGoal = profileGoals()[0];
+        state.activeGoalId = firstGoal ? firstGoal.id : createGoalForActiveProfile();
+        selectedThemeIndex = 0;
+        refreshVisible();
+        return;
+      }
+
+      if (event.target.id === "activeDate") {
+        activeDate = event.target.value || isoToday();
+        refreshVisible();
+        return;
+      }
+
+      const routineCheck = event.target.closest(".routine-check");
+      if (routineCheck) {
+        const record = dailyRecord();
+        record.checks[routineCheck.dataset.routineId] = routineCheck.checked;
+        refreshVisible();
+        return;
+      }
+
+      if (event.target.id === "importData") {
+        importData(event.target.files[0]);
+      }
+    });
+
+    function addProfile() {
+      const count = state.profiles.length + 1;
+      const profile = {
+        id: uid("profile"),
+        name: `メンバー${count}`,
+        color: COLORS[state.profiles.length % COLORS.length]
+      };
+      state.profiles.push(profile);
+      state.activeProfileId = profile.id;
+      state.activeGoalId = createGoalForActiveProfile();
+      selectedThemeIndex = 0;
+      refreshVisible();
+      showToast("メンバーを追加しました");
+    }
+
+    function createGoalForActiveProfile() {
+      const goal = createGoal(state.activeProfileId);
+      state.goals.push(goal);
+      return goal.id;
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `family-practice-note-${activeDate}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast("JSONを書き出しました");
+    }
+
+    function importData(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          state = normalizeState(JSON.parse(reader.result));
+          saveState();
+          selectedThemeIndex = 0;
+          render();
+          showToast("読み込みました");
+        } catch (error) {
+          console.error(error);
+          showToast("読み込みに失敗しました");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    render();
+  </script>
+</body>
+</html>
