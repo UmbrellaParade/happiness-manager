@@ -458,6 +458,86 @@
       grid-column: 1 / -1;
     }
 
+    .perspective-section {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-soft);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .perspective-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .perspective-heading h4 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .perspective-heading span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .perspective-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .perspective-card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .perspective-card label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .perspective-card label span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .perspective-card textarea {
+      width: 100%;
+      min-width: 0;
+      min-height: 98px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 11px;
+      outline: none;
+      resize: vertical;
+    }
+
+    .perspective-card textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(47, 104, 184, 0.14);
+    }
+
     .board-layout {
       display: grid;
       grid-template-columns: minmax(420px, 1.05fr) minmax(310px, 0.95fr);
@@ -751,7 +831,8 @@
       }
 
       .purpose-grid,
-      .journal-grid {
+      .journal-grid,
+      .perspective-grid {
         grid-template-columns: 1fr;
       }
 
@@ -884,12 +965,22 @@
         purpose: "",
         futureSelf: "",
         contribution: "",
+        perspectives: blankPerspectives(),
         reason: "",
         obstacles: "",
         support: "",
         firstStep: "",
         themes: blankThemes(),
         createdAt: new Date().toISOString()
+      };
+    }
+
+    function blankPerspectives() {
+      return {
+        selfTangible: "",
+        selfIntangible: "",
+        othersTangible: "",
+        othersIntangible: ""
       };
     }
 
@@ -947,6 +1038,7 @@
       }
 
       state.goals.forEach((goal) => {
+        goal.perspectives = normalizePerspectives(goal.perspectives);
         goal.themes = Array.isArray(goal.themes) ? goal.themes.slice(0, 8) : blankThemes();
         while (goal.themes.length < 8) goal.themes.push({ title: "", actions: [] });
         goal.themes.forEach((theme) => {
@@ -970,6 +1062,17 @@
       }
 
       return state;
+    }
+
+    function normalizePerspectives(perspectives) {
+      const blank = blankPerspectives();
+      if (!perspectives || typeof perspectives !== "object") return blank;
+      return {
+        selfTangible: String(perspectives.selfTangible || ""),
+        selfIntangible: String(perspectives.selfIntangible || ""),
+        othersTangible: String(perspectives.othersTangible || ""),
+        othersIntangible: String(perspectives.othersIntangible || "")
+      };
     }
 
     let state = loadState();
@@ -1287,6 +1390,7 @@
                 ${goalField("purpose", "何のために", goal.purpose, "textarea")}
                 ${goalField("futureSelf", "達成した時の自分", goal.futureSelf, "textarea")}
                 ${goalField("contribution", "誰にどんな良い影響があるか", goal.contribution, "textarea")}
+                ${renderPerspectiveSection(goal)}
                 ${goalField("reason", "折れそうな時に戻る理由", goal.reason, "textarea")}
                 ${goalField("obstacles", "想定される壁", goal.obstacles, "textarea")}
                 ${goalField("support", "支え・約束", goal.support, "textarea")}
@@ -1294,6 +1398,35 @@
               </div>
             </div>
           </section>
+        </div>
+      `;
+    }
+
+    function renderPerspectiveSection(goal) {
+      const items = [
+        ["selfTangible", "私・有形", "見える成果"],
+        ["selfIntangible", "私・無形", "内面の変化"],
+        ["othersTangible", "社会・他者・有形", "具体的な貢献"],
+        ["othersIntangible", "社会・他者・無形", "心への影響"]
+      ];
+
+      return `
+        <div class="perspective-section">
+          <div class="perspective-heading">
+            <h4>目的・目標の4観点</h4>
+            <span>私 / 社会・他者 × 有形 / 無形</span>
+          </div>
+          <div class="perspective-grid">
+            ${items.map(([key, label, hint]) => `
+              <div class="perspective-card">
+                <label for="perspective-${key}">
+                  ${label}
+                  <span>${hint}</span>
+                </label>
+                <textarea id="perspective-${key}" data-perspective-field="${key}">${escapeHtml(goal.perspectives[key])}</textarea>
+              </div>
+            `).join("")}
+          </div>
         </div>
       `;
     }
@@ -1629,6 +1762,15 @@
         if (goalFieldName === "title" || goalFieldName === "deadline") {
           $("#screenSubtitle").textContent = `${activeProfile().name} / ${activeGoal().title || "目標未設定"}`;
         }
+        return;
+      }
+
+      const perspectiveFieldName = event.target.dataset.perspectiveField;
+      if (perspectiveFieldName) {
+        const goal = activeGoal();
+        goal.perspectives = normalizePerspectives(goal.perspectives);
+        goal.perspectives[perspectiveFieldName] = event.target.value;
+        saveState();
         return;
       }
 
