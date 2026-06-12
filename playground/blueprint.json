@@ -18,12 +18,10 @@
         "path": "wordpress-plugin/happiness-manager",
         "ref": "main",
         "refType": "branch"
+      },
+      "options": {
+        "activate": true
       }
-    },
-    {
-      "step": "activatePlugin",
-      "pluginPath": "happiness-manager/happiness-manager.php",
-      "pluginName": "Happiness Manager"
     }
   ]
 }
