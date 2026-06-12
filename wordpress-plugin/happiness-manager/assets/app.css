@@ -1,0 +1,500 @@
+.hm-admin-wrap {
+  max-width: 1280px;
+}
+
+.hm-settings-box {
+  margin: 16px 0;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.hm-settings-box summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hm-settings-form {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  padding-top: 12px;
+}
+
+.hm-settings-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.hm-settings-form input {
+  width: 100%;
+  max-width: 520px;
+}
+
+.hm-app-root {
+  --hm-bg: #f5f7fa;
+  --hm-paper: #ffffff;
+  --hm-soft: #f9fafb;
+  --hm-ink: #172033;
+  --hm-muted: #667085;
+  --hm-line: #d9e1ea;
+  --hm-green: #2f7c68;
+  --hm-blue: #2f68b8;
+  --hm-radius: 8px;
+  color: var(--hm-ink);
+  font-family: "Yu Gothic UI", "Hiragino Sans", Meiryo, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+.hm-app-root * {
+  box-sizing: border-box;
+}
+
+.hm-app-root button,
+.hm-app-root input,
+.hm-app-root textarea,
+.hm-app-root select {
+  font: inherit;
+}
+
+.hm-app-root button {
+  cursor: pointer;
+}
+
+.hm-shell {
+  display: grid;
+  gap: 14px;
+  background: var(--hm-bg);
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 16px;
+}
+
+.hm-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.hm-toolbar > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.hm-toolbar [data-save-status] {
+  color: var(--hm-muted);
+  font-size: 12px;
+}
+
+.hm-toolbar-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hm-toolbar select,
+.hm-toolbar input,
+.hm-panel input,
+.hm-panel textarea,
+.hm-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: var(--hm-ink);
+  padding: 9px 10px;
+}
+
+.hm-toolbar select,
+.hm-toolbar input {
+  width: auto;
+}
+
+.hm-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hm-tabs button,
+.hm-segment button,
+.hm-panel header button,
+.hm-buttons button,
+.hm-import,
+.hm-action-row button,
+.hm-open-cell button,
+.hm-perspective button,
+.hm-coach button {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: var(--hm-ink);
+  min-height: 34px;
+  padding: 7px 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.hm-tabs button.active,
+.hm-segment button.active,
+.hm-action-row button.active,
+.hm-open-cell button.active {
+  border-color: #98c7b9;
+  background: #e8f4f0;
+  color: #1e5f4f;
+}
+
+.hm-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.hm-grid-2 {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.hm-panel {
+  min-width: 0;
+  background: var(--hm-paper);
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 14px;
+}
+
+.hm-panel + .hm-panel {
+  margin-top: 14px;
+}
+
+.hm-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hm-panel h2,
+.hm-panel h3 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.hm-panel h2 {
+  font-size: 17px;
+}
+
+.hm-panel h3 {
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.hm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hm-form-grid label,
+.hm-actions label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.hm-form-grid textarea,
+.hm-perspective textarea,
+.hm-coach textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.hm-goal-list {
+  display: grid;
+  gap: 8px;
+}
+
+.hm-goal-list button {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 10px;
+  text-align: left;
+  font-weight: 800;
+}
+
+.hm-goal-list button.active {
+  border-color: #98c7b9;
+  background: #f0f8f5;
+}
+
+.hm-perspectives {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hm-perspective {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 12px;
+}
+
+.hm-perspective > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.hm-perspective strong {
+  display: block;
+}
+
+.hm-perspective span {
+  color: var(--hm-muted);
+  font-size: 12px;
+}
+
+.hm-perspective button {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--hm-green);
+  min-height: 30px;
+}
+
+.hm-board-edit {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(300px, 0.9fr);
+  gap: 14px;
+}
+
+.hm-theme-map {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hm-theme-card {
+  min-height: 104px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+  align-content: space-between;
+  text-align: left;
+}
+
+.hm-theme-card.active {
+  border-color: #98c7b9;
+  background: #f0f8f5;
+}
+
+.hm-theme-card.center {
+  background: #eaf4f1;
+  border-color: #bdd9d0;
+}
+
+.hm-theme-card small,
+.hm-theme-card span,
+.hm-open-cell small,
+.hm-muted,
+.hm-check small {
+  color: var(--hm-muted);
+  font-size: 12px;
+}
+
+.hm-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.hm-action-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 74px;
+  gap: 8px;
+  align-items: center;
+}
+
+.hm-action-row > span {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #eef2f7;
+  color: var(--hm-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hm-open-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.hm-open-board {
+  min-width: 900px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hm-open-block {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 98px;
+  gap: 5px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #eef3f7;
+  padding: 6px;
+}
+
+.hm-open-block.center {
+  background: #e7f2ef;
+}
+
+.hm-open-cell {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 3px;
+  border: 1px solid #cdd7e2;
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px;
+}
+
+.hm-open-cell.center {
+  background: #f2faf7;
+}
+
+.hm-open-cell input,
+.hm-open-cell textarea {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.hm-open-cell textarea {
+  resize: none;
+}
+
+.hm-open-cell button {
+  justify-self: end;
+  min-height: 22px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.hm-slider {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 28px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.hm-slider input {
+  padding: 0;
+}
+
+.hm-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 9px;
+  margin-top: 8px;
+}
+
+.hm-check span,
+.hm-check small {
+  display: block;
+}
+
+.hm-coach {
+  display: grid;
+  gap: 10px;
+}
+
+.hm-coach textarea {
+  min-height: 120px;
+}
+
+.hm-coach-result {
+  min-height: 120px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 12px;
+}
+
+.hm-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hm-import {
+  position: relative;
+  overflow: hidden;
+}
+
+.hm-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.hm-loading {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+}
+
+@media (max-width: 900px) {
+  .hm-toolbar,
+  .hm-panel header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hm-grid-2,
+  .hm-form-grid,
+  .hm-perspectives,
+  .hm-board-edit {
+    grid-template-columns: 1fr;
+  }
+
+  .hm-action-row {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .hm-action-row button {
+    grid-column: 2;
+    width: max-content;
+  }
+}

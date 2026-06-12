@@ -23,3 +23,9 @@
 ## 公開
 
 GitHub Pagesで静的サイトとして公開する想定です。
+
+## WordPress版
+
+WordPressに日誌や目標を保存したい場合は、`wordpress-plugin/happiness-manager` にプラグイン版があります。
+
+WordPress版では、日誌をWordPressの非公開投稿としても同期し、OpenAI APIを使ったAI目標コーチも利用できます。
