@@ -2,9 +2,10 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
+ * Update URI: https://github.com/UmbrellaParade/happiness-manager
  */
 
 if (!defined('ABSPATH')) {
@@ -12,7 +13,12 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.0';
+    private const VERSION = '0.1.1';
+    private const SLUG = 'happiness-manager';
+    private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
+    private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
+    private const UPDATE_ASSET = 'happiness-manager-wordpress-plugin.zip';
+    private const UPDATE_CACHE_KEY = 'hm_github_latest_release';
     private const STATE_META_KEY = 'hm_state_v1';
     private const OPTION_API_KEY = 'hm_openai_api_key';
     private const OPTION_MODEL = 'hm_openai_model';
@@ -25,6 +31,8 @@ final class Happiness_Manager_Plugin {
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_frontend_assets']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
         add_shortcode('happiness_manager', [__CLASS__, 'render_shortcode']);
+        add_filter('pre_set_site_transient_update_plugins', [__CLASS__, 'check_for_updates']);
+        add_filter('plugins_api', [__CLASS__, 'plugin_update_info'], 20, 3);
         register_activation_hook(__FILE__, [__CLASS__, 'activate']);
     }
 
@@ -130,6 +138,138 @@ final class Happiness_Manager_Plugin {
             'model' => (string) get_option(self::OPTION_MODEL, 'gpt-5-mini'),
             'hasApiKey' => self::has_api_key(),
         ]);
+    }
+
+    public static function check_for_updates($transient) {
+        if (!is_object($transient)) {
+            return $transient;
+        }
+
+        if (empty($transient->checked)) {
+            return $transient;
+        }
+
+        $release = self::get_latest_release();
+        if (!$release || empty($release['package'])) {
+            return $transient;
+        }
+
+        if (version_compare($release['version'], self::VERSION, '<=')) {
+            return $transient;
+        }
+
+        $plugin_file = plugin_basename(__FILE__);
+        if (!isset($transient->response) || !is_array($transient->response)) {
+            $transient->response = [];
+        }
+
+        $transient->response[$plugin_file] = (object) [
+            'id' => self::UPDATE_URI,
+            'slug' => self::SLUG,
+            'plugin' => $plugin_file,
+            'new_version' => $release['version'],
+            'url' => $release['html_url'],
+            'package' => $release['package'],
+            'tested' => '6.6',
+            'requires' => '6.0',
+            'requires_php' => '7.4',
+        ];
+
+        return $transient;
+    }
+
+    public static function plugin_update_info($result, string $action, $args) {
+        if ($action !== 'plugin_information' || empty($args->slug) || $args->slug !== self::SLUG) {
+            return $result;
+        }
+
+        $release = self::get_latest_release(true);
+        if (!$release) {
+            return $result;
+        }
+
+        return (object) [
+            'name' => 'Happiness Manager',
+            'slug' => self::SLUG,
+            'version' => $release['version'],
+            'author' => 'UmbrellaParade',
+            'homepage' => self::UPDATE_URI,
+            'requires' => '6.0',
+            'tested' => '6.6',
+            'requires_php' => '7.4',
+            'download_link' => $release['package'],
+            'sections' => [
+                'description' => 'WordPressに日誌、目標、64分解、AI相談を保存する家族向けHappiness Managerプラグインです。',
+                'changelog' => nl2br(esc_html($release['body'] !== '' ? $release['body'] : 'GitHub Releasesから配信される更新です。')),
+            ],
+        ];
+    }
+
+    private static function get_latest_release(bool $force = false): ?array {
+        if (!$force) {
+            $cached = get_site_transient(self::UPDATE_CACHE_KEY);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
+        $response = wp_remote_get('https://api.github.com/repos/' . self::UPDATE_REPO . '/releases/latest', [
+            'headers' => [
+                'Accept' => 'application/vnd.github+json',
+                'User-Agent' => 'Happiness-Manager-WordPress-Updater',
+            ],
+            'timeout' => 15,
+        ]);
+
+        if (is_wp_error($response)) {
+            return null;
+        }
+
+        if ((int) wp_remote_retrieve_response_code($response) !== 200) {
+            return null;
+        }
+
+        $data = json_decode((string) wp_remote_retrieve_body($response), true);
+        if (!is_array($data) || empty($data['tag_name'])) {
+            return null;
+        }
+
+        $package = '';
+        foreach (($data['assets'] ?? []) as $asset) {
+            if (!is_array($asset) || empty($asset['name']) || empty($asset['browser_download_url'])) {
+                continue;
+            }
+
+            if ((string) $asset['name'] === self::UPDATE_ASSET) {
+                $package = (string) $asset['browser_download_url'];
+                break;
+            }
+        }
+
+        if ($package === '') {
+            return null;
+        }
+
+        $release = [
+            'version' => self::normalize_release_version((string) $data['tag_name']),
+            'tag' => (string) $data['tag_name'],
+            'name' => (string) ($data['name'] ?? $data['tag_name']),
+            'html_url' => (string) ($data['html_url'] ?? self::UPDATE_URI),
+            'body' => (string) ($data['body'] ?? ''),
+            'package' => $package,
+            'published_at' => (string) ($data['published_at'] ?? ''),
+        ];
+
+        set_site_transient(self::UPDATE_CACHE_KEY, $release, 6 * HOUR_IN_SECONDS);
+        return $release;
+    }
+
+    private static function normalize_release_version(string $tag): string {
+        $tag = trim($tag);
+        if ($tag !== '' && ($tag[0] === 'v' || $tag[0] === 'V')) {
+            return substr($tag, 1);
+        }
+        return $tag;
     }
 
     public static function render_admin_page(): void {
