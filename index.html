@@ -504,6 +504,13 @@
       gap: 8px;
     }
 
+    .perspective-card__top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     .perspective-card label {
       display: flex;
       align-items: center;
@@ -512,6 +519,8 @@
       color: #344054;
       font-size: 13px;
       font-weight: 900;
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .perspective-card label span {
@@ -536,6 +545,131 @@
     .perspective-card textarea:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(47, 104, 184, 0.14);
+    }
+
+    .bullet-button {
+      flex: 0 0 auto;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--green);
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .bullet-button:hover {
+      border-color: var(--green);
+      background: #f0f8f5;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-auto-flow: column;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #eef2f7;
+      padding: 4px;
+    }
+
+    .segment-button {
+      min-height: 32px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .segment-button.active {
+      background: #fff;
+      color: var(--green);
+      box-shadow: 0 1px 3px rgba(23, 32, 51, 0.12);
+    }
+
+    .board-edit-layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.05fr) minmax(310px, 0.95fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(112px, auto));
+      gap: 10px;
+    }
+
+    .theme-card {
+      min-width: 0;
+      min-height: 112px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      color: var(--ink);
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    button.theme-card:hover,
+    button.theme-card.active {
+      border-color: var(--green);
+      box-shadow: inset 0 0 0 2px rgba(47, 124, 104, 0.14);
+    }
+
+    .theme-card.center {
+      background: #eaf4f1;
+      border-color: #bdd9d0;
+    }
+
+    .cell-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .cell-title {
+      display: block;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .cell-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-number {
+      width: 26px;
+      height: 26px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #eef2f7;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
     }
 
     .open-window-panel .panel-body {
@@ -842,6 +976,7 @@
         border-bottom: none;
       }
 
+      .board-edit-layout,
       .grid.two,
       .grid.three,
       .stat-row {
@@ -880,6 +1015,23 @@
       .journal-grid,
       .perspective-grid {
         grid-template-columns: 1fr;
+      }
+
+      .theme-grid {
+        grid-template-rows: none;
+      }
+
+      .theme-card {
+        min-height: 94px;
+      }
+
+      .action-row {
+        grid-template-columns: 26px minmax(0, 1fr);
+      }
+
+      .action-row .toggle-pill {
+        grid-column: 2;
+        width: max-content;
       }
 
       .open-window-board {
@@ -1034,6 +1186,7 @@
         profiles: [{ id: profileId, name: "じぶん", color: COLORS[0] }],
         activeProfileId: profileId,
         activeGoalId: goal.id,
+        boardMode: "edit",
         goals: [goal],
         customRoutines: [],
         daily: {},
@@ -1058,6 +1211,7 @@
         profiles: Array.isArray(data.profiles) ? data.profiles : [],
         activeProfileId: data.activeProfileId || "",
         activeGoalId: data.activeGoalId || "",
+        boardMode: data.boardMode === "open" ? "open" : "edit",
         goals: Array.isArray(data.goals) ? data.goals : [],
         customRoutines: Array.isArray(data.customRoutines) ? data.customRoutines : [],
         daily: data.daily && typeof data.daily === "object" ? data.daily : {},
@@ -1441,10 +1595,10 @@
 
     function renderPerspectiveSection(goal) {
       const items = [
-        ["selfTangible", "私・有形", "見える成果"],
         ["selfIntangible", "私・無形", "内面の変化"],
-        ["othersTangible", "社会・他者・有形", "具体的な貢献"],
-        ["othersIntangible", "社会・他者・無形", "心への影響"]
+        ["selfTangible", "私・有形", "見える成果"],
+        ["othersIntangible", "社会・他者・無形", "心への影響"],
+        ["othersTangible", "社会・他者・有形", "具体的な貢献"]
       ];
 
       return `
@@ -1456,16 +1610,35 @@
           <div class="perspective-grid">
             ${items.map(([key, label, hint]) => `
               <div class="perspective-card">
-                <label for="perspective-${key}">
-                  ${label}
-                  <span>${hint}</span>
-                </label>
-                <textarea id="perspective-${key}" data-perspective-field="${key}">${escapeHtml(goal.perspectives[key])}</textarea>
+                <div class="perspective-card__top">
+                  <label for="perspective-${key}">
+                    ${label}
+                    <span>${hint}</span>
+                  </label>
+                  <button type="button" class="bullet-button" data-add-bullet="${key}">・追加</button>
+                </div>
+                <textarea id="perspective-${key}" data-perspective-field="${key}" placeholder="・">${escapeHtml(goal.perspectives[key])}</textarea>
               </div>
             `).join("")}
           </div>
         </div>
       `;
+    }
+
+    function addPerspectiveBullet(key) {
+      const goal = activeGoal();
+      goal.perspectives = normalizePerspectives(goal.perspectives);
+      const textarea = $(`#perspective-${key}`);
+      if (!textarea) return;
+
+      const current = textarea.value;
+      const separator = current && !current.endsWith("\n") ? "\n" : "";
+      const next = `${current}${separator}・`;
+      textarea.value = next;
+      goal.perspectives[key] = next;
+      saveState();
+      textarea.focus();
+      textarea.setSelectionRange(next.length, next.length);
     }
 
     function goalField(key, label, value, type, extraClass = "") {
@@ -1488,23 +1661,84 @@
 
     function renderBoard() {
       const goal = activeGoal();
-      const blockOrder = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+      const isOpenWindow = state.boardMode === "open";
       $("#view-board").innerHTML = `
-        <section class="panel open-window-panel">
+        <section class="panel ${isOpenWindow ? "open-window-panel" : ""}">
           <div class="panel-header">
             <div>
-              <h3 class="panel-title">オープンウィンドウ64</h3>
+              <h3 class="panel-title">${isOpenWindow ? "オープンウィンドウ64" : "64分解"}</h3>
               <p class="panel-subtitle">${escapeHtml(goal.title || "目標未設定")}</p>
+            </div>
+            <div class="segmented" role="group" aria-label="64分解の表示切替">
+              <button type="button" class="segment-button ${state.boardMode === "edit" ? "active" : ""}" data-board-mode="edit">編集ビュー</button>
+              <button type="button" class="segment-button ${state.boardMode === "open" ? "active" : ""}" data-board-mode="open">一枚ビュー</button>
             </div>
           </div>
           <div class="panel-body">
-            <div class="open-window-scroll" aria-label="オープンウィンドウ64ボード">
-              <div class="open-window-board">
-                ${blockOrder.map((item) => item === "center" ? renderThemeMapBlock(goal) : renderActionBlock(goal, item)).join("")}
-              </div>
-            </div>
+            ${isOpenWindow ? renderOpenWindowBoard(goal) : renderEditBoard(goal)}
           </div>
         </section>
+      `;
+    }
+
+    function renderEditBoard(goal) {
+      const selected = goal.themes[selectedThemeIndex] || goal.themes[0];
+      const gridMap = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+      return `
+        <div class="board-edit-layout">
+          <div class="theme-grid">
+            ${gridMap.map((item) => {
+              if (item === "center") {
+                return `
+                  <div class="theme-card center">
+                    <span class="cell-kicker">中心</span>
+                    <span class="cell-title">${escapeHtml(goal.title || "目標を書く")}</span>
+                    <span class="cell-count">${escapeHtml(goal.deadline || "期限なし")}</span>
+                  </div>
+                `;
+              }
+
+              const theme = goal.themes[item];
+              const actionCount = theme.actions.filter((action) => action.text.trim()).length;
+              return `
+                <button type="button" class="theme-card ${selectedThemeIndex === item ? "active" : ""}" data-theme-index="${item}">
+                  <span class="cell-kicker">テーマ ${item + 1}</span>
+                  <span class="cell-title">${escapeHtml(theme.title || "未設定")}</span>
+                  <span class="cell-count">${actionCount}/8 行動</span>
+                </button>
+              `;
+            }).join("")}
+          </div>
+
+          <div>
+            <div class="field" style="margin-bottom: 14px;">
+              <label for="themeTitle">テーマ名</label>
+              <input id="themeTitle" class="compact-input" data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}">
+            </div>
+            <div class="action-list">
+              ${selected.actions.map((action, index) => `
+                <div class="action-row">
+                  <span class="action-number">${index + 1}</span>
+                  <input class="compact-input" data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" value="${escapeHtml(action.text)}" aria-label="行動 ${index + 1}">
+                  <button type="button" class="toggle-pill ${action.routine ? "active" : ""}" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}">
+                    ${action.routine ? "毎日" : "候補"}
+                  </button>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderOpenWindowBoard(goal) {
+      const blockOrder = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+      return `
+        <div class="open-window-scroll" aria-label="オープンウィンドウ64ボード">
+          <div class="open-window-board">
+            ${blockOrder.map((item) => item === "center" ? renderThemeMapBlock(goal) : renderActionBlock(goal, item)).join("")}
+          </div>
+        </div>
       `;
     }
 
@@ -1672,6 +1906,20 @@
       const tabButton = event.target.closest("[data-tab]");
       if (tabButton) {
         setTab(tabButton.dataset.tab);
+        return;
+      }
+
+      const boardModeButton = event.target.closest("[data-board-mode]");
+      if (boardModeButton) {
+        state.boardMode = boardModeButton.dataset.boardMode === "open" ? "open" : "edit";
+        saveState();
+        renderBoard();
+        return;
+      }
+
+      const bulletButton = event.target.closest("[data-add-bullet]");
+      if (bulletButton) {
+        addPerspectiveBullet(bulletButton.dataset.addBullet);
         return;
       }
 
