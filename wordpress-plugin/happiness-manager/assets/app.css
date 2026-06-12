@@ -475,6 +475,51 @@
   border-radius: 8px;
 }
 
+.hm-frontend-app {
+  width: min(100%, 1100px);
+  margin: 0 auto;
+}
+
+.hm-frontend-app .hm-shell {
+  min-height: 70vh;
+}
+
+.hm-frontend-app[data-mobile-mode="1"] .hm-form-grid textarea[data-journal-field] {
+  min-height: 126px;
+}
+
+.hm-login-message {
+  max-width: 520px;
+  margin: 24px auto;
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+  color: #172033;
+  font-family: "Yu Gothic UI", "Hiragino Sans", Meiryo, system-ui, sans-serif;
+}
+
+.hm-login-message p {
+  margin: 0 0 12px;
+}
+
+.hm-login-message p:last-child {
+  margin-bottom: 0;
+}
+
+.hm-login-message .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid #2f7c68;
+  border-radius: 8px;
+  background: #2f7c68;
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 @media (max-width: 900px) {
   .hm-toolbar,
   .hm-panel header {
@@ -496,5 +541,61 @@
   .hm-action-row button {
     grid-column: 2;
     width: max-content;
+  }
+}
+
+@media (max-width: 700px) {
+  .hm-frontend-app {
+    width: 100vw;
+    margin-right: calc(50% - 50vw);
+    margin-left: calc(50% - 50vw);
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-shell {
+    min-height: 100dvh;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    padding: 12px 12px 86px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-tabs {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    border-top: 1px solid var(--hm-line);
+    background: rgba(255, 255, 255, 0.97);
+    padding: 8px max(8px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    box-shadow: 0 -8px 24px rgba(23, 32, 51, 0.08);
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-tabs button {
+    flex: 1 0 68px;
+    min-height: 42px;
+    white-space: nowrap;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-toolbar-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-toolbar select,
+  .hm-frontend-app[data-mobile-mode="1"] .hm-toolbar input {
+    width: 100%;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-panel {
+    padding: 12px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-form-grid {
+    gap: 10px;
   }
 }

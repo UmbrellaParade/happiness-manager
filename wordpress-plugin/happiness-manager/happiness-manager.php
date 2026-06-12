@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.1
+ * Version: 0.1.2
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,13 +13,14 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.1';
+    private const VERSION = '0.1.2';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
     private const UPDATE_ASSET = 'happiness-manager-wordpress-plugin.zip';
     private const UPDATE_CACHE_KEY = 'hm_github_latest_release';
     private const STATE_META_KEY = 'hm_state_v1';
+    private const OPTION_FRONTEND_PAGE_ID = 'hm_frontend_page_id';
     private const OPTION_API_KEY = 'hm_openai_api_key';
     private const OPTION_MODEL = 'hm_openai_model';
 
@@ -27,6 +28,7 @@ final class Happiness_Manager_Plugin {
         add_action('init', [__CLASS__, 'register_journal_post_type']);
         add_action('admin_menu', [__CLASS__, 'register_admin_page']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
+        add_action('admin_init', [__CLASS__, 'maybe_create_frontend_page']);
         add_action('rest_api_init', [__CLASS__, 'register_rest_routes']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_frontend_assets']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
@@ -39,6 +41,7 @@ final class Happiness_Manager_Plugin {
     public static function activate(): void {
         add_option(self::OPTION_MODEL, 'gpt-5-mini', '', false);
         add_option(self::OPTION_API_KEY, '', '', false);
+        self::ensure_frontend_page();
         self::register_journal_post_type();
         flush_rewrite_rules();
     }
@@ -70,6 +73,12 @@ final class Happiness_Manager_Plugin {
             'sanitize_callback' => [__CLASS__, 'sanitize_api_key'],
             'default' => '',
         ]);
+    }
+
+    public static function maybe_create_frontend_page(): void {
+        if (current_user_can('publish_pages')) {
+            self::ensure_frontend_page();
+        }
     }
 
     public static function sanitize_model($value): string {
@@ -123,9 +132,30 @@ final class Happiness_Manager_Plugin {
 
     public static function enqueue_frontend_assets(): void {
         self::register_assets();
-        if (is_user_logged_in()) {
-            self::enqueue_assets();
+        if (!self::current_page_has_shortcode()) {
+            return;
         }
+
+        wp_enqueue_style('happiness-manager-app');
+        if (is_user_logged_in()) {
+            wp_enqueue_script('happiness-manager-app');
+            wp_localize_script('happiness-manager-app', 'HM_CONFIG', [
+                'restUrl' => esc_url_raw(rest_url('happiness-manager/v1')),
+                'nonce' => wp_create_nonce('wp_rest'),
+                'userId' => get_current_user_id(),
+                'model' => (string) get_option(self::OPTION_MODEL, 'gpt-5-mini'),
+                'hasApiKey' => self::has_api_key(),
+            ]);
+        }
+    }
+
+    private static function current_page_has_shortcode(): bool {
+        if (!is_singular()) {
+            return false;
+        }
+
+        $post = get_post();
+        return $post instanceof WP_Post && has_shortcode((string) $post->post_content, 'happiness_manager');
     }
 
     private static function enqueue_assets(): void {
@@ -138,6 +168,51 @@ final class Happiness_Manager_Plugin {
             'model' => (string) get_option(self::OPTION_MODEL, 'gpt-5-mini'),
             'hasApiKey' => self::has_api_key(),
         ]);
+    }
+
+    private static function ensure_frontend_page(): int {
+        $page_id = (int) get_option(self::OPTION_FRONTEND_PAGE_ID, 0);
+        if ($page_id > 0 && get_post($page_id)) {
+            return $page_id;
+        }
+
+        $existing = get_page_by_path('happiness-manager');
+        if ($existing instanceof WP_Post) {
+            $page_id = (int) $existing->ID;
+            if (!has_shortcode((string) $existing->post_content, 'happiness_manager')) {
+                wp_update_post([
+                    'ID' => $page_id,
+                    'post_content' => trim((string) $existing->post_content) . "\n\n[happiness_manager view=\"journal\" mobile=\"1\"]",
+                ]);
+            }
+            update_option(self::OPTION_FRONTEND_PAGE_ID, $page_id, false);
+            return $page_id;
+        }
+
+        $page_id = wp_insert_post([
+            'post_type' => 'page',
+            'post_status' => 'publish',
+            'post_title' => 'Happiness Manager',
+            'post_name' => 'happiness-manager',
+            'post_content' => '[happiness_manager view="journal" mobile="1"]',
+            'post_author' => get_current_user_id() ?: 1,
+        ]);
+
+        if (!is_wp_error($page_id) && $page_id > 0) {
+            update_option(self::OPTION_FRONTEND_PAGE_ID, (int) $page_id, false);
+            return (int) $page_id;
+        }
+
+        return 0;
+    }
+
+    private static function frontend_page_url(): string {
+        $page_id = self::ensure_frontend_page();
+        if ($page_id > 0) {
+            return (string) get_permalink($page_id);
+        }
+
+        return home_url('/');
     }
 
     public static function check_for_updates($transient) {
@@ -282,6 +357,11 @@ final class Happiness_Manager_Plugin {
         <div class="wrap hm-admin-wrap">
             <h1>Happiness Manager</h1>
 
+            <p>
+                <a class="button button-primary" href="<?php echo esc_url(self::frontend_page_url()); ?>" target="_blank" rel="noopener">スマホ用ページを開く</a>
+                <span class="description">サイト側で日誌を直接書けるページです。</span>
+            </p>
+
             <details class="hm-settings-box">
                 <summary>AI設定</summary>
                 <form method="post" action="options.php" class="hm-settings-form">
@@ -298,18 +378,37 @@ final class Happiness_Manager_Plugin {
                 </form>
             </details>
 
-            <div data-hm-app class="hm-app-root"></div>
+            <div data-hm-app data-initial-tab="goals" class="hm-app-root"></div>
         </div>
         <?php
     }
 
-    public static function render_shortcode(): string {
-        if (!is_user_logged_in()) {
-            return '<p>Happiness Managerを使うにはWordPressにログインしてください。</p>';
+    public static function render_shortcode($atts = []): string {
+        $atts = shortcode_atts([
+            'view' => 'journal',
+            'mobile' => '1',
+        ], $atts, 'happiness_manager');
+
+        self::register_assets();
+        if (!wp_style_is('happiness-manager-app', 'enqueued')) {
+            wp_enqueue_style('happiness-manager-app');
         }
 
-        self::enqueue_assets();
-        return '<div data-hm-app class="hm-app-root"></div>';
+        if (!is_user_logged_in()) {
+            $redirect = get_permalink();
+            if (!$redirect) {
+                $redirect = home_url('/');
+            }
+            $login_url = wp_login_url($redirect);
+            return '<div class="hm-login-message"><p>Happiness Managerを使うにはWordPressにログインしてください。</p><p><a class="button" href="' . esc_url($login_url) . '">ログインして日誌を書く</a></p></div>';
+        }
+
+        if (!wp_script_is('happiness-manager-app', 'enqueued')) {
+            self::enqueue_assets();
+        }
+        $view = in_array($atts['view'], ['goals', 'board', 'journal', 'coach', 'backup'], true) ? $atts['view'] : 'journal';
+        $mobile = $atts['mobile'] === '1' ? '1' : '0';
+        return '<div data-hm-app data-initial-tab="' . esc_attr($view) . '" data-mobile-mode="' . esc_attr($mobile) . '" class="hm-app-root hm-frontend-app"></div>';
     }
 
     public static function register_rest_routes(): void {

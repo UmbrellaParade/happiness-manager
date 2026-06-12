@@ -11,9 +11,13 @@
     ["coach", "AI相談"],
     ["backup", "保存"]
   ];
+  const urlParams = new URLSearchParams(window.location.search);
+  const rootInitialTab = roots[0]?.dataset.initialTab || "";
+  const requestedTab = urlParams.get("hm_tab") || rootInitialTab || "goals";
+  const validTab = tabs.some(([key]) => key === requestedTab) ? requestedTab : "goals";
 
   let state = null;
-  let activeTab = "goals";
+  let activeTab = validTab;
   let activeDate = today();
   let selectedThemeIndex = 0;
   let saveTimer = null;
