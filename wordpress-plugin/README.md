@@ -4,6 +4,8 @@
 
 開発中の初版なので、まずはテスト用WordPressで動作確認してから本番サイトへ入れてください。
 
+手動アップロードで入れる場合は、GitHub Releasesの `happiness-manager.zip` を使ってください。ZIP内の先頭フォルダが `happiness-manager/` になるようにしています。
+
 プラグインを有効化すると、サイト側に `Happiness Manager` 固定ページが自動作成されます。スマホではそのページを開くだけで、WordPress管理画面に入らず日誌を直接保存できます。
 
 固定ページを削除した場合、プラグインは自動で復活させません。必要になった時だけ、管理画面の「スマホ用ページを作成」から再作成できます。
@@ -18,4 +20,4 @@
 
 ブラウザ内の一時WordPressで試す場合は、WordPress Playgroundを使えます。
 
-https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.4.json
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.5.json
