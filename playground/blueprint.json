@@ -1,0 +1,29 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/wp-admin/admin.php?page=happiness-manager",
+  "login": true,
+  "preferredVersions": {
+    "php": "8.3",
+    "wp": "latest"
+  },
+  "siteOptions": {
+    "blogname": "Happiness Manager Demo"
+  },
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "git:directory",
+        "url": "https://github.com/UmbrellaParade/happiness-manager",
+        "path": "wordpress-plugin/happiness-manager",
+        "ref": "main",
+        "refType": "branch"
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "happiness-manager/happiness-manager.php",
+      "pluginName": "Happiness Manager"
+    }
+  ]
+}

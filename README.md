@@ -29,3 +29,7 @@ GitHub Pagesで静的サイトとして公開する想定です。
 WordPressに日誌や目標を保存したい場合は、`wordpress-plugin/happiness-manager` にプラグイン版があります。
 
 WordPress版では、日誌をWordPressの非公開投稿としても同期し、OpenAI APIを使ったAI目標コーチも利用できます。
+
+ブラウザだけで試す場合は、WordPress Playgroundのデモを使えます。
+
+[WordPress Playgroundで試す](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint.json)
