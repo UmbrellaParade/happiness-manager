@@ -533,6 +533,24 @@
   color: var(--hm-muted) !important;
 }
 
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell b,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell p,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell input,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell textarea {
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell small {
+  color: var(--hm-muted) !important;
+  -webkit-text-fill-color: var(--hm-muted) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
 .hm-open-cell em {
   justify-self: end;
   border: 1px solid #98c7b9;

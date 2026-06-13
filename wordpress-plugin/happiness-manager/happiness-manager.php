@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.20
+ * Version: 0.1.21
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.20';
+    private const VERSION = '0.1.21';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -566,7 +566,28 @@ final class Happiness_Manager_Plugin {
         }
         $view = in_array($atts['view'], ['goals', 'board', 'journal', 'coach', 'backup'], true) ? $atts['view'] : 'journal';
         $mobile = $atts['mobile'] === '1' ? '1' : '0';
-        return '<div data-hm-app data-initial-tab="' . esc_attr($view) . '" data-mobile-mode="' . esc_attr($mobile) . '" class="hm-app-root hm-frontend-app"></div>';
+        return '<div data-hm-app data-initial-tab="' . esc_attr($view) . '" data-mobile-mode="' . esc_attr($mobile) . '" class="hm-app-root hm-frontend-app"></div>' . self::critical_frontend_css();
+    }
+
+    private static function critical_frontend_css(): string {
+        return '<style id="hm-critical-frontend-css">
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell b,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell p,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell input,
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell textarea {
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+.hm-app-root.hm-frontend-app .hm-shell .hm-open-cell small {
+  color: var(--hm-muted) !important;
+  -webkit-text-fill-color: var(--hm-muted) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+</style>';
     }
 
     public static function register_rest_routes(): void {
