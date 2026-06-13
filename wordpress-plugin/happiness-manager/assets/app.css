@@ -248,6 +248,14 @@
   grid-column: 1 / -1;
 }
 
+.hm-plan-grid textarea {
+  min-height: 72px;
+}
+
+.hm-goal-actions {
+  margin-top: 12px;
+}
+
 .hm-form-grid textarea,
 .hm-perspective textarea,
 .hm-coach textarea {
@@ -325,6 +333,28 @@
   gap: 14px;
 }
 
+.hm-board-toolbar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.hm-board-context {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fbfefd;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.hm-board-context span,
+.hm-board-context small {
+  color: var(--hm-muted);
+  font-size: 12px;
+}
+
 .hm-theme-map {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -367,9 +397,16 @@
   gap: 10px;
 }
 
+.hm-subs-field textarea {
+  min-height: 78px;
+  max-height: 180px;
+  overflow: auto;
+  resize: vertical;
+}
+
 .hm-action-row {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) 74px;
+  grid-template-columns: 26px minmax(0, 1fr) 74px 92px;
   gap: 8px;
   align-items: center;
 }
@@ -384,6 +421,14 @@
   color: var(--hm-muted);
   font-size: 12px;
   font-weight: 900;
+}
+
+.hm-action-row textarea {
+  grid-column: 2 / -1;
+  min-height: 62px;
+  max-height: 160px;
+  overflow: auto;
+  resize: vertical;
 }
 
 .hm-open-scroll {
@@ -498,6 +543,12 @@
   display: grid;
   gap: 6px;
   font-weight: 800;
+}
+
+.hm-coach-select-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.55fr) minmax(0, 1fr);
+  gap: 10px;
 }
 
 .hm-coach-select span,
@@ -684,6 +735,67 @@
   padding: 12px;
 }
 
+.hm-archive-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.hm-archive-entry {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 10px;
+}
+
+.hm-archive-entry summary {
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.hm-archive-entry summary span,
+.hm-archive-entry summary small {
+  display: block;
+}
+
+.hm-archive-entry summary em {
+  color: var(--hm-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.hm-archive-entry pre {
+  max-height: 420px;
+  overflow: auto;
+  margin: 10px 0 0;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.hm-archive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hm-archive-grid > div {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 8px;
+}
+
+.hm-archive-grid p {
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
+
 .hm-buttons {
   display: flex;
   gap: 8px;
@@ -775,6 +887,15 @@
   .hm-action-row button {
     grid-column: 2;
     width: max-content;
+  }
+
+  .hm-action-row textarea {
+    grid-column: 2;
+  }
+
+  .hm-coach-select-grid,
+  .hm-archive-grid {
+    grid-template-columns: 1fr;
   }
 
   .hm-memory-grid {

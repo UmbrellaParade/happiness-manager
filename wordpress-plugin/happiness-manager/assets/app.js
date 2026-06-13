@@ -9,6 +9,7 @@
     ["board", "64分解"],
     ["journal", "日誌"],
     ["coach", "AI相談"],
+    ["archive", "過去目標"],
     ["backup", "保存"]
   ];
   const urlParams = new URLSearchParams(window.location.search);
@@ -20,6 +21,10 @@
   let activeTab = validTab;
   let activeDate = today();
   let selectedThemeIndex = 0;
+  let boardScope = "long";
+  let boardPath = [];
+  let coachArea = "goal";
+  let coachTarget = "goal.long";
   let saveTimer = null;
   let saveStatus = "読み込み中";
   let saveTone = "loading";
@@ -39,11 +44,44 @@
     return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  function blankThemes() {
-    return Array.from({ length: 8 }, () => ({
+  function blankAction() {
+    return {
+      text: "",
+      routine: false,
+      subs: [],
+      childThemes: null
+    };
+  }
+
+  function blankTheme() {
+    return {
       title: "",
-      actions: Array.from({ length: 8 }, () => ({ text: "", routine: false }))
-    }));
+      subs: [],
+      actions: Array.from({ length: 8 }, () => blankAction())
+    };
+  }
+
+  function blankThemes() {
+    return Array.from({ length: 8 }, () => blankTheme());
+  }
+
+  function blankPlan() {
+    return {
+      longTitle: "",
+      longDate: "",
+      recentTitle: "",
+      recentDate: "",
+      nextTitle: "",
+      nextDate: "",
+      achievedNote: ""
+    };
+  }
+
+  function blankBoardVariants() {
+    return {
+      recent: null,
+      next: null
+    };
   }
 
   function blankPerspectives() {
@@ -74,9 +112,74 @@
       deadline: "",
       measure: "",
       purpose: "",
+      plan: blankPlan(),
       perspectives: blankPerspectives(),
       firstStep: "",
-      themes: blankThemes()
+      themes: blankThemes(),
+      boardVariants: blankBoardVariants(),
+      archives: []
+    };
+  }
+
+  function normalizeLines(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 24);
+    }
+    if (typeof value === "string") {
+      return value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 24);
+    }
+    return [];
+  }
+
+  function linesToText(value) {
+    return normalizeLines(value).join("\n");
+  }
+
+  function cloneThemes(themes) {
+    return normalizeThemes(JSON.parse(JSON.stringify(themes || blankThemes())));
+  }
+
+  function normalizeAction(action, depth = 0) {
+    const childThemes = action && Array.isArray(action.childThemes) && depth < 4
+      ? normalizeThemes(action.childThemes, depth + 1)
+      : null;
+    return {
+      text: action && action.text ? String(action.text) : "",
+      routine: Boolean(action && action.routine),
+      subs: normalizeLines(action && action.subs),
+      childThemes
+    };
+  }
+
+  function normalizeTheme(theme, depth = 0) {
+    const next = {
+      title: theme && theme.title ? String(theme.title) : "",
+      subs: normalizeLines(theme && theme.subs),
+      actions: Array.isArray(theme && theme.actions) ? theme.actions.slice(0, 8) : []
+    };
+    while (next.actions.length < 8) next.actions.push(blankAction());
+    next.actions = next.actions.map((action) => normalizeAction(action, depth));
+    return next;
+  }
+
+  function normalizeThemes(themes, depth = 0) {
+    const next = Array.isArray(themes) ? themes.slice(0, 8) : blankThemes();
+    while (next.length < 8) next.push(blankTheme());
+    return next.map((theme) => normalizeTheme(theme, depth));
+  }
+
+  function normalizePlan(goal) {
+    const plan = Object.assign(blankPlan(), goal && goal.plan ? goal.plan : {});
+    if (!plan.longTitle && goal && goal.title) plan.longTitle = String(goal.title);
+    if (!plan.longDate && goal && goal.deadline) plan.longDate = String(goal.deadline);
+    return {
+      longTitle: String(plan.longTitle || ""),
+      longDate: String(plan.longDate || ""),
+      recentTitle: String(plan.recentTitle || ""),
+      recentDate: String(plan.recentDate || ""),
+      nextTitle: String(plan.nextTitle || ""),
+      nextDate: String(plan.nextDate || ""),
+      achievedNote: String(plan.achievedNote || "")
     };
   }
 
@@ -130,17 +233,33 @@
     }
 
     next.goals.forEach((goal) => {
+      goal.title = String(goal.title || "新しい目標");
+      goal.target = String(goal.target || "");
+      goal.deadline = String(goal.deadline || "");
+      goal.measure = String(goal.measure || "");
+      goal.purpose = String(goal.purpose || "");
+      goal.firstStep = String(goal.firstStep || "");
+      goal.plan = normalizePlan(goal);
       goal.perspectives = Object.assign(blankPerspectives(), goal.perspectives || {});
-      goal.themes = Array.isArray(goal.themes) ? goal.themes.slice(0, 8) : blankThemes();
-      while (goal.themes.length < 8) goal.themes.push({ title: "", actions: [] });
-      goal.themes.forEach((theme) => {
-        theme.actions = Array.isArray(theme.actions) ? theme.actions.slice(0, 8) : [];
-        while (theme.actions.length < 8) theme.actions.push({ text: "", routine: false });
-        theme.actions = theme.actions.map((action) => ({
-          text: action && action.text ? String(action.text) : "",
-          routine: Boolean(action && action.routine)
-        }));
-      });
+      goal.themes = normalizeThemes(goal.themes);
+      goal.boardVariants = goal.boardVariants && typeof goal.boardVariants === "object" ? goal.boardVariants : blankBoardVariants();
+      goal.boardVariants.recent = Array.isArray(goal.boardVariants.recent) ? normalizeThemes(goal.boardVariants.recent) : null;
+      goal.boardVariants.next = Array.isArray(goal.boardVariants.next) ? normalizeThemes(goal.boardVariants.next) : null;
+      goal.archives = Array.isArray(goal.archives) ? goal.archives.slice(0, 80).map((item) => ({
+        id: String(item && item.id ? item.id : uid("archive")),
+        type: String(item && item.type ? item.type : "goal"),
+        at: String(item && item.at ? item.at : new Date().toISOString()),
+        title: String(item && item.title ? item.title : "履歴"),
+        note: String(item && item.note ? item.note : ""),
+        scope: String(item && item.scope ? item.scope : ""),
+        pathLabel: String(item && item.pathLabel ? item.pathLabel : ""),
+        plan: item && item.plan && typeof item.plan === "object" ? item.plan : null,
+        target: String(item && item.target ? item.target : ""),
+        purpose: String(item && item.purpose ? item.purpose : ""),
+        perspectives: item && item.perspectives && typeof item.perspectives === "object" ? item.perspectives : null,
+        themes: Array.isArray(item && item.themes) ? normalizeThemes(item.themes) : null,
+        boardVariants: item && item.boardVariants && typeof item.boardVariants === "object" ? item.boardVariants : null
+      })) : [];
     });
 
     if (!next.activeGoalId || !next.goals.some((goal) => goal.id === next.activeGoalId && goal.profileId === next.activeProfileId)) {
@@ -205,6 +324,105 @@
       state.activeGoalId = goal.id;
     }
     return goal;
+  }
+
+  function boardScopeLabel(scope = boardScope) {
+    const labels = {
+      long: "長期目標の64",
+      recent: "直近目標の64",
+      next: "次の目標の64"
+    };
+    return labels[scope] || labels.long;
+  }
+
+  function boardGoalTitle(goal, scope = boardScope) {
+    if (scope === "recent") return goal.plan.recentTitle || "直近の目標";
+    if (scope === "next") return goal.plan.nextTitle || "次の目標";
+    return goal.plan.longTitle || goal.title || "長期目標";
+  }
+
+  function boardGoalDate(goal, scope = boardScope) {
+    if (scope === "recent") return goal.plan.recentDate || "";
+    if (scope === "next") return goal.plan.nextDate || "";
+    return goal.plan.longDate || goal.deadline || "";
+  }
+
+  function ensureBoardVariant(goal, scope = boardScope) {
+    goal.boardVariants = goal.boardVariants && typeof goal.boardVariants === "object" ? goal.boardVariants : blankBoardVariants();
+    if (scope === "long") return goal.themes;
+    if (!Array.isArray(goal.boardVariants[scope])) {
+      goal.boardVariants[scope] = cloneThemes(goal.themes);
+    }
+    return goal.boardVariants[scope];
+  }
+
+  function baseBoardThemes(goal, forWrite = false) {
+    if (boardScope === "long") return goal.themes;
+    return forWrite ? ensureBoardVariant(goal, boardScope) : (Array.isArray(goal.boardVariants?.[boardScope]) ? goal.boardVariants[boardScope] : goal.themes);
+  }
+
+  function boardThemesAtPath(goal, forWrite = false) {
+    let themes = baseBoardThemes(goal, forWrite);
+    for (const step of boardPath) {
+      const theme = themes[step.themeIndex];
+      const action = theme?.actions?.[step.actionIndex];
+      if (!action) return blankThemes();
+      if (forWrite && !Array.isArray(action.childThemes)) {
+        action.childThemes = blankThemes();
+      }
+      themes = Array.isArray(action.childThemes) ? action.childThemes : blankThemes();
+    }
+    return themes;
+  }
+
+  function boardPathLabel(goal) {
+    if (!boardPath.length) return boardScopeLabel();
+    let themes = baseBoardThemes(goal, false);
+    const labels = [boardScopeLabel()];
+    boardPath.forEach((step) => {
+      const action = themes[step.themeIndex]?.actions?.[step.actionIndex];
+      labels.push(action?.text || `${step.themeIndex + 1}-${step.actionIndex + 1}`);
+      themes = Array.isArray(action?.childThemes) ? action.childThemes : blankThemes();
+    });
+    return labels.join(" > ");
+  }
+
+  function activeBoardTheme(goal, forWrite = false) {
+    const themes = boardThemesAtPath(goal, forWrite);
+    return themes[selectedThemeIndex] || themes[0];
+  }
+
+  function archiveGoal(goal) {
+    goal.archives = Array.isArray(goal.archives) ? goal.archives : [];
+    goal.archives.unshift({
+      id: uid("archive"),
+      type: "goal",
+      at: new Date().toISOString(),
+      title: goal.title || goal.plan.longTitle || "達成した目標",
+      note: goal.plan.achievedNote || "",
+      plan: Object.assign({}, goal.plan),
+      target: goal.target || "",
+      purpose: goal.purpose || "",
+      perspectives: Object.assign({}, goal.perspectives || {}),
+      themes: cloneThemes(goal.themes),
+      boardVariants: JSON.parse(JSON.stringify(goal.boardVariants || blankBoardVariants()))
+    });
+    goal.archives = goal.archives.slice(0, 80);
+  }
+
+  function archiveBoard(goal) {
+    goal.archives = Array.isArray(goal.archives) ? goal.archives : [];
+    goal.archives.unshift({
+      id: uid("archive"),
+      type: "board",
+      at: new Date().toISOString(),
+      title: `${boardPathLabel(goal)} の履歴`,
+      note: "",
+      scope: boardScope,
+      pathLabel: boardPathLabel(goal),
+      themes: cloneThemes(boardThemesAtPath(goal, false))
+    });
+    goal.archives = goal.archives.slice(0, 80);
   }
 
   function dayKey() {
@@ -433,18 +651,29 @@
 
   function routineItems() {
     const items = [];
-    profileGoals().forEach((goal) => {
-      goal.themes.forEach((theme, themeIndex) => {
+    function collectFromThemes(goal, themes, scope, prefix = "") {
+      if (!Array.isArray(themes)) return;
+      themes.forEach((theme, themeIndex) => {
         theme.actions.forEach((action, actionIndex) => {
           if (!action.routine || !action.text.trim()) return;
+          const id = `${scope}:${prefix}${themeIndex}:${actionIndex}`;
           items.push({
-            id: `action:${goal.id}:${themeIndex}:${actionIndex}`,
+            id: `action:${goal.id}:${id}`,
             text: action.text.trim(),
             goalTitle: goal.title || "目標",
-            themeTitle: theme.title || `テーマ${themeIndex + 1}`
+            themeTitle: `${boardScopeLabel(scope)} / ${theme.title || `テーマ${themeIndex + 1}`}`
           });
+          if (Array.isArray(action.childThemes)) {
+            collectFromThemes(goal, action.childThemes, scope, `${themeIndex}-${actionIndex}>`);
+          }
         });
       });
+    }
+
+    profileGoals().forEach((goal) => {
+      collectFromThemes(goal, goal.themes, "long");
+      collectFromThemes(goal, goal.boardVariants?.recent, "recent");
+      collectFromThemes(goal, goal.boardVariants?.next, "next");
     });
     return items;
   }
@@ -550,7 +779,6 @@
           </div>
           <div class="hm-toolbar-controls">
             <button type="button" data-save-now>今すぐ保存</button>
-            <select data-profile-select>${state.profiles.map((profile) => `<option value="${profile.id}" ${profile.id === state.activeProfileId ? "selected" : ""}>${escapeHtml(profile.name)}</option>`).join("")}</select>
             <input type="date" data-active-date value="${escapeHtml(activeDate)}">
           </div>
         </div>
@@ -567,6 +795,7 @@
     if (activeTab === "board") return renderBoard();
     if (activeTab === "journal") return renderJournal();
     if (activeTab === "coach") return renderCoach();
+    if (activeTab === "archive") return renderArchive();
     return renderBackup();
   }
 
@@ -584,6 +813,17 @@
           </div>
         </section>
         <section class="hm-panel">
+          <header><h2>逆算の目標設定</h2></header>
+          <div class="hm-form-grid hm-plan-grid">
+            ${planField("longTitle", "長期目標", goal.plan.longTitle || goal.title, "textarea", "wide")}
+            ${planField("longDate", "長期目標の日付", goal.plan.longDate || goal.deadline, "date")}
+            ${planField("recentTitle", "直近の目標", goal.plan.recentTitle, "textarea", "wide")}
+            ${planField("recentDate", "直近の目標の日付", goal.plan.recentDate, "date")}
+            ${planField("nextTitle", "次の目標", goal.plan.nextTitle, "textarea", "wide")}
+            ${planField("nextDate", "次の目標の日付", goal.plan.nextDate, "date")}
+          </div>
+        </section>
+        <section class="hm-panel">
           <header><h2>中心設定</h2></header>
           <div class="hm-form-grid">
             ${field("title", "目標名", goal.title, "input")}
@@ -592,6 +832,10 @@
             ${field("measure", "達成のものさし", goal.measure, "textarea")}
             ${field("purpose", "何のために", goal.purpose, "textarea")}
             ${field("firstStep", "最初の一手", goal.firstStep, "textarea", "wide")}
+            ${planField("achievedNote", "達成メモ・保存したい成長", goal.plan.achievedNote, "textarea", "wide")}
+          </div>
+          <div class="hm-buttons hm-goal-actions">
+            <button type="button" data-archive-goal>達成として過去目標へ保存</button>
           </div>
         </section>
       </div>
@@ -606,6 +850,13 @@
     const control = type === "textarea"
       ? `<textarea data-goal-field="${key}" data-autosize>${escapeHtml(value)}</textarea>`
       : `<input type="${type}" data-goal-field="${key}" value="${escapeHtml(value)}">`;
+    return `<label class="${extra}"><span>${label}</span>${control}</label>`;
+  }
+
+  function planField(key, label, value, type, extra = "") {
+    const control = type === "textarea"
+      ? `<textarea data-goal-plan-field="${key}" data-autosize>${escapeHtml(value)}</textarea>`
+      : `<input type="${type}" data-goal-plan-field="${key}" value="${escapeHtml(value)}">`;
     return `<label class="${extra}"><span>${label}</span>${control}</label>`;
   }
 
@@ -634,6 +885,7 @@
 
   function renderBoard() {
     const goal = activeGoal();
+    const themes = boardThemesAtPath(goal, false);
     return `
       <section class="hm-panel">
         <header>
@@ -643,30 +895,47 @@
             <button type="button" data-board-mode="open" class="${state.boardMode === "open" ? "active" : ""}">一枚ビュー</button>
           </div>
         </header>
-        ${state.boardMode === "open" ? renderOpenBoard(goal) : renderEditBoard(goal)}
+        <div class="hm-board-toolbar">
+          <div class="hm-segment">
+            ${["long", "recent", "next"].map((scope) => `<button type="button" data-board-scope="${scope}" class="${boardScope === scope ? "active" : ""}">${escapeHtml(boardScopeLabel(scope))}</button>`).join("")}
+          </div>
+          <div class="hm-buttons">
+            ${boardPath.length ? '<button type="button" data-board-path-back>上の64へ戻る</button>' : ""}
+            <button type="button" data-archive-board>この64を履歴へ保存</button>
+          </div>
+        </div>
+        <div class="hm-board-context">
+          <strong>${escapeHtml(boardPathLabel(goal))}</strong>
+          <span>${escapeHtml(boardGoalTitle(goal))}${boardGoalDate(goal) ? ` / ${escapeHtml(boardGoalDate(goal))}` : ""}</span>
+          ${boardScope !== "long" && !Array.isArray(goal.boardVariants?.[boardScope]) ? '<small>長期目標の64を引き継いで表示中です。編集するとこの目標用にコピーして保存します。</small>' : ""}
+        </div>
+        ${state.boardMode === "open" ? renderOpenBoard(goal, themes) : renderEditBoard(goal, themes)}
       </section>
     `;
   }
 
-  function renderEditBoard(goal) {
+  function renderEditBoard(goal, themes) {
     const map = [0, 1, 2, 3, "center", 4, 5, 6, 7];
-    const selected = goal.themes[selectedThemeIndex] || goal.themes[0];
+    const selected = themes[selectedThemeIndex] || themes[0];
     return `
       <div class="hm-board-edit">
         <div class="hm-theme-map">
           ${map.map((item) => {
-            if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(goal.title || "目標")}</b><span>${escapeHtml(goal.deadline || "期限なし")}</span></div>`;
-            const theme = goal.themes[item];
-            return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動</span></button>`;
+            if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(boardGoalTitle(goal))}</b><span>${escapeHtml(boardGoalDate(goal) || "期限なし")}</span></div>`;
+            const theme = themes[item];
+            return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動${theme.subs.length ? ` / サブ${theme.subs.length}` : ""}</span></button>`;
           }).join("")}
         </div>
         <div class="hm-actions">
           <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
+          <label class="hm-subs-field"><span>テーマのサブ項目・メモ</span><textarea data-theme-subs="${selectedThemeIndex}" placeholder="8つに絞る前の候補や補足を残せます">${escapeHtml(linesToText(selected.subs))}</textarea></label>
           ${selected.actions.map((action, index) => `
             <div class="hm-action-row">
               <span>${index + 1}</span>
               <input data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" value="${escapeHtml(action.text)}" placeholder="行動">
               <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
+              <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">${action.childThemes ? "下位64" : "下位64作成"}</button>
+              <textarea data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" data-action-subs placeholder="サブ項目・次の一手メモ">${escapeHtml(linesToText(action.subs))}</textarea>
             </div>
           `).join("")}
         </div>
@@ -674,33 +943,33 @@
     `;
   }
 
-  function renderOpenBoard(goal) {
+  function renderOpenBoard(goal, themes) {
     const blockOrder = [0, 1, 2, 3, "center", 4, 5, 6, 7];
     return `
       <div class="hm-open-scroll">
         <div class="hm-open-board">
-          ${blockOrder.map((item) => item === "center" ? renderCenterBlock(goal) : renderActionBlock(goal, item)).join("")}
+          ${blockOrder.map((item) => item === "center" ? renderCenterBlock(goal, themes) : renderActionBlock(goal, themes, item)).join("")}
         </div>
       </div>
     `;
   }
 
-  function renderCenterBlock(goal) {
+  function renderCenterBlock(goal, themes) {
     const order = [0, 1, 2, 3, "goal", 4, 5, 6, 7];
     return `<div class="hm-open-block center">${order.map((item) => {
-      if (item === "goal") return `<div class="hm-open-cell center"><b>${escapeHtml(goal.title || "目標")}</b></div>`;
-      const theme = goal.themes[item];
+      if (item === "goal") return `<div class="hm-open-cell center"><b>${escapeHtml(boardGoalTitle(goal))}</b></div>`;
+      const theme = themes[item];
       return `<div class="hm-open-cell center"><small>テーマ ${item + 1}</small><input data-theme-title="${item}" value="${escapeHtml(theme.title)}" placeholder="テーマ"></div>`;
     }).join("")}</div>`;
   }
 
-  function renderActionBlock(goal, themeIndex) {
-    const theme = goal.themes[themeIndex];
+  function renderActionBlock(goal, themes, themeIndex) {
+    const theme = themes[themeIndex];
     const order = [0, 1, 2, 3, "theme", 4, 5, 6, 7];
     return `<div class="hm-open-block">${order.map((item) => {
       if (item === "theme") return `<div class="hm-open-cell center"><small>テーマ ${themeIndex + 1}</small><input data-theme-title="${themeIndex}" value="${escapeHtml(theme.title)}" placeholder="テーマ"></div>`;
       const action = theme.actions[item];
-      return `<div class="hm-open-cell"><small>${themeIndex + 1}-${item + 1}</small><textarea data-action-theme-index="${themeIndex}" data-action-index="${item}" placeholder="行動">${escapeHtml(action.text)}</textarea><button type="button" data-routine-theme="${themeIndex}" data-routine-action="${item}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button></div>`;
+      return `<div class="hm-open-cell"><small>${themeIndex + 1}-${item + 1}${action.subs.length ? ` / サブ${action.subs.length}` : ""}</small><textarea data-action-theme-index="${themeIndex}" data-action-index="${item}" placeholder="行動">${escapeHtml(action.text)}</textarea><button type="button" data-routine-theme="${themeIndex}" data-routine-action="${item}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button></div>`;
     }).join("")}</div>`;
   }
 
@@ -797,8 +1066,67 @@
     `;
   }
 
+  function coachTargetOptions(goal) {
+    if (coachArea === "board") {
+      return [
+        ["board.current", `今開いている64: ${boardPathLabel(goal)}`],
+        ["board.long", "長期目標の64"],
+        ["board.recent", "直近目標の64"],
+        ["board.next", "次の目標の64"],
+        ["board.theme", `選択中テーマ: ${(activeBoardTheme(goal, false)?.title || "未設定")}`],
+        ["board.tomorrow", "明日やった方がいいこと"]
+      ];
+    }
+    if (coachArea === "journal") {
+      return [
+        ["journal.tomorrow", "明日やった方がいいこと"],
+        ["journal.today", "今日の日誌"],
+        ["journal.recent", "最近の日誌"],
+        ["journal.condition", "コンディション"]
+      ];
+    }
+    return [
+      ["goal.long", "長期目標"],
+      ["goal.recent", "直近の目標"],
+      ["goal.next", "次の目標"],
+      ["goal.target", "達成したい結果"],
+      ["goal.perspectives", "4観点"],
+      ["goal.firstStep", "最初の一手"],
+      ["goal.achieved", "達成メモ"]
+    ];
+  }
+
+  function normalizeCoachTarget(goal) {
+    const options = coachTargetOptions(goal);
+    if (!options.some(([value]) => value === coachTarget)) {
+      coachTarget = options[0][0];
+    }
+    return options;
+  }
+
+  function coachSelectionContext(goal) {
+    const journal = journalRecord();
+    const selectedTheme = activeBoardTheme(goal, false);
+    const selectedActions = selectedTheme?.actions || [];
+    return {
+      area: coachArea,
+      target: coachTarget,
+      label: coachTargetOptions(goal).find(([value]) => value === coachTarget)?.[1] || coachTarget,
+      boardScope,
+      boardPathLabel: boardPathLabel(goal),
+      selectedThemeIndex,
+      selectedTheme,
+      selectedActions,
+      goalPlan: goal.plan,
+      todayJournal: journal,
+      recentJournals: recentJournalSummaries()
+    };
+  }
+
   function renderCoach() {
     const memory = activeAiMemory();
+    const goal = activeGoal();
+    const targetOptions = normalizeCoachTarget(goal);
     const history = Array.isArray(memory.history) ? memory.history : [];
     const historyHtml = history.length
       ? history.map((item) => `
@@ -818,18 +1146,25 @@
             <summary>最近の相談履歴</summary>
             ${historyHtml}
           </details>
-          <label class="hm-coach-select">
-            <span>相談したい項目</span>
-            <select data-coach-mode>
-              <option value="goal">目標づくり</option>
-              <option value="perspectives">4観点</option>
-              <option value="board">64分解</option>
-              <option value="journal">日誌の振り返り</option>
-            </select>
-          </label>
+          <div class="hm-coach-select-grid">
+            <label class="hm-coach-select">
+              <span>相談カテゴリ</span>
+              <select data-coach-area>
+                <option value="goal" ${coachArea === "goal" ? "selected" : ""}>目標</option>
+                <option value="board" ${coachArea === "board" ? "selected" : ""}>64分解</option>
+                <option value="journal" ${coachArea === "journal" ? "selected" : ""}>日誌</option>
+              </select>
+            </label>
+            <label class="hm-coach-select">
+              <span>詳しく相談したい項目</span>
+              <select data-coach-target>
+                ${targetOptions.map(([value, label]) => `<option value="${value}" ${coachTarget === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+              </select>
+            </label>
+          </div>
           <label class="hm-coach-question">
             <span>相談したい質問内容</span>
-            <textarea data-coach-message data-autosize placeholder="例: 健康の目標を作りたい。4観点と64分解を一緒に考えてほしい。"></textarea>
+            <textarea data-coach-message data-autosize placeholder="例: この目標に対して、明日やった方がいいことを一緒に整理してほしい。"></textarea>
           </label>
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
@@ -840,6 +1175,58 @@
           </label>
           ${renderMemoryVault(memory)}
         </div>
+      </section>
+    `;
+  }
+
+  function summarizeThemes(themes) {
+    if (!Array.isArray(themes)) return "";
+    return themes.map((theme, themeIndex) => {
+      const actions = theme.actions
+        .map((action, actionIndex) => action.text ? `${themeIndex + 1}-${actionIndex + 1}. ${action.text}` : "")
+        .filter(Boolean)
+        .slice(0, 8)
+        .join("\n");
+      const subs = theme.subs && theme.subs.length ? `\n  サブ: ${theme.subs.join(" / ")}` : "";
+      return `${themeIndex + 1}. ${theme.title || "未設定"}${subs}${actions ? `\n${actions}` : ""}`;
+    }).join("\n\n");
+  }
+
+  function renderArchive() {
+    const goal = activeGoal();
+    const archives = Array.isArray(goal.archives) ? goal.archives : [];
+    const list = archives.length ? archives.map((item) => `
+      <details class="hm-archive-entry">
+        <summary>
+          <span>
+            <strong>${escapeHtml(item.title || "履歴")}</strong>
+            <small>${escapeHtml((item.at || "").slice(0, 10))} / ${item.type === "board" ? "64履歴" : "過去目標"}</small>
+          </span>
+          <em>${escapeHtml(item.note || item.pathLabel || item.target || "")}</em>
+        </summary>
+        ${item.type === "goal" ? `
+          <div class="hm-archive-grid">
+            <div><b>長期目標</b><p>${escapeHtml(item.plan?.longTitle || "")}</p><small>${escapeHtml(item.plan?.longDate || "")}</small></div>
+            <div><b>直近の目標</b><p>${escapeHtml(item.plan?.recentTitle || "")}</p><small>${escapeHtml(item.plan?.recentDate || "")}</small></div>
+            <div><b>次の目標</b><p>${escapeHtml(item.plan?.nextTitle || "")}</p><small>${escapeHtml(item.plan?.nextDate || "")}</small></div>
+          </div>
+          <pre>${escapeHtml([
+            item.target ? `達成したい結果:\n${item.target}` : "",
+            item.purpose ? `何のために:\n${item.purpose}` : "",
+            item.note ? `達成メモ:\n${item.note}` : "",
+            item.themes ? `64分解:\n${summarizeThemes(item.themes)}` : ""
+          ].filter(Boolean).join("\n\n"))}</pre>
+        ` : `
+          <pre>${escapeHtml(summarizeThemes(item.themes))}</pre>
+        `}
+      </details>
+    `).join("") : '<p class="hm-muted">まだ保存した過去目標や64履歴はありません。</p>';
+
+    return `
+      <section class="hm-panel">
+        <header><h2>過去目標・64履歴</h2></header>
+        <p class="hm-muted">達成した目標や、その時点の64分解を成長履歴として残せます。</p>
+        <div class="hm-archive-list">${list}</div>
       </section>
     `;
   }
@@ -861,6 +1248,8 @@
   function updateGoalField(target) {
     const goal = activeGoal();
     goal[target.dataset.goalField] = target.value;
+    if (target.dataset.goalField === "title" && !goal.plan.longTitle) goal.plan.longTitle = target.value;
+    if (target.dataset.goalField === "deadline" && !goal.plan.longDate) goal.plan.longDate = target.value;
     queueSave();
   }
 
@@ -892,6 +1281,7 @@
       if (goalButton) {
         state.activeGoalId = goalButton.dataset.goalId;
         selectedThemeIndex = 0;
+        boardPath = [];
         queueSave();
         renderAll();
         return;
@@ -921,11 +1311,56 @@
         return;
       }
 
+      const boardScopeButton = event.target.closest("[data-board-scope]");
+      if (boardScopeButton) {
+        boardScope = boardScopeButton.dataset.boardScope || "long";
+        boardPath = [];
+        selectedThemeIndex = 0;
+        renderAll();
+        return;
+      }
+
+      if (event.target.closest("[data-board-path-back]")) {
+        boardPath = boardPath.slice(0, -1);
+        selectedThemeIndex = 0;
+        renderAll();
+        return;
+      }
+
+      if (event.target.closest("[data-archive-board]")) {
+        archiveBoard(activeGoal());
+        queueSave();
+        activeTab = "archive";
+        renderAll();
+        return;
+      }
+
+      if (event.target.closest("[data-archive-goal]")) {
+        archiveGoal(activeGoal());
+        queueSave();
+        activeTab = "archive";
+        renderAll();
+        return;
+      }
+
+      const childBoard = event.target.closest("[data-open-child-board]");
+      if (childBoard) {
+        const [themeIndex, actionIndex] = childBoard.dataset.openChildBoard.split(":").map(Number);
+        const themes = boardThemesAtPath(activeGoal(), true);
+        const action = themes[themeIndex]?.actions?.[actionIndex];
+        if (action && !Array.isArray(action.childThemes)) action.childThemes = blankThemes();
+        boardPath = boardPath.concat([{ themeIndex, actionIndex }]);
+        selectedThemeIndex = 0;
+        queueSave();
+        renderAll();
+        return;
+      }
+
       const routineButton = event.target.closest("[data-routine-action]");
       if (routineButton) {
         const themeIndex = Number(routineButton.dataset.routineTheme);
         const actionIndex = Number(routineButton.dataset.routineAction);
-        const action = activeGoal().themes[themeIndex].actions[actionIndex];
+        const action = boardThemesAtPath(activeGoal(), true)[themeIndex].actions[actionIndex];
         action.routine = !action.routine;
         selectedThemeIndex = themeIndex;
         queueSave();
@@ -1002,7 +1437,7 @@
 
       if (event.target.closest("[data-ask-coach]")) {
         const message = root.querySelector("[data-coach-message]")?.value.trim() || "";
-        const mode = root.querySelector("[data-coach-mode]")?.value || "goal";
+        const mode = coachTarget || coachArea || "goal";
         if (!message) return;
         let memoryChanged = false;
         coachBusy = true;
@@ -1016,11 +1451,11 @@
               message,
               context: {
                 activeDate,
-                profile: activeProfile(),
                 goal: activeGoal(),
                 daily: dailyRecord(),
                 journal: journalRecord(),
                 recentJournals: recentJournalSummaries(),
+                coachSelection: coachSelectionContext(activeGoal()),
                 aiMemory: activeAiMemory()
               }
             })
@@ -1041,20 +1476,38 @@
       const target = event.target;
       if (target.matches("textarea[data-autosize]")) resizeAutosizeTextarea(target);
       if (target.matches("[data-goal-field]")) updateGoalField(target);
+      if (target.matches("[data-goal-plan-field]")) {
+        const goal = activeGoal();
+        goal.plan[target.dataset.goalPlanField] = target.value;
+        if (target.dataset.goalPlanField === "longTitle") goal.title = target.value || goal.title;
+        if (target.dataset.goalPlanField === "longDate") goal.deadline = target.value || goal.deadline;
+        queueSave();
+      }
       if (target.matches("[data-perspective-field]")) {
         activeGoal().perspectives[target.dataset.perspectiveField] = target.value;
         queueSave();
       }
       if (target.matches("[data-theme-title]")) {
         const themeIndex = Number(target.dataset.themeTitle);
-        activeGoal().themes[themeIndex].title = target.value;
+        boardThemesAtPath(activeGoal(), true)[themeIndex].title = target.value;
+        selectedThemeIndex = themeIndex;
+        queueSave();
+      }
+      if (target.matches("[data-theme-subs]")) {
+        const themeIndex = Number(target.dataset.themeSubs);
+        boardThemesAtPath(activeGoal(), true)[themeIndex].subs = normalizeLines(target.value);
         selectedThemeIndex = themeIndex;
         queueSave();
       }
       if (target.matches("[data-action-index]")) {
         const themeIndex = Number(target.dataset.actionThemeIndex);
         const actionIndex = Number(target.dataset.actionIndex);
-        activeGoal().themes[themeIndex].actions[actionIndex].text = target.value;
+        const action = boardThemesAtPath(activeGoal(), true)[themeIndex].actions[actionIndex];
+        if (target.matches("[data-action-subs]")) {
+          action.subs = normalizeLines(target.value);
+        } else {
+          action.text = target.value;
+        }
         selectedThemeIndex = themeIndex;
         queueSave();
       }
@@ -1084,16 +1537,17 @@
 
     root.addEventListener("change", async (event) => {
       const target = event.target;
-      if (target.matches("[data-profile-select]")) {
-        state.activeProfileId = target.value;
-        state.activeGoalId = profileGoals()[0]?.id || activeGoal().id;
-        selectedThemeIndex = 0;
-        queueSave();
-        renderAll();
-      }
       if (target.matches("[data-active-date]")) {
         activeDate = target.value || today();
         renderAll();
+      }
+      if (target.matches("[data-coach-area]")) {
+        coachArea = target.value || "goal";
+        coachTarget = coachTargetOptions(activeGoal())[0][0];
+        renderAll();
+      }
+      if (target.matches("[data-coach-target]")) {
+        coachTarget = target.value || coachTargetOptions(activeGoal())[0][0];
       }
       if (target.matches("[data-routine-check]")) {
         dailyRecord().checks[target.dataset.routineCheck] = target.checked;
