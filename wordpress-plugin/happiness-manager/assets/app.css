@@ -94,6 +94,9 @@
 
 .hm-app-root button {
   cursor: pointer;
+  -webkit-text-fill-color: currentColor !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
 }
 
 .hm-shell {
