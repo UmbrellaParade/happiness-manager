@@ -455,6 +455,27 @@
   min-height: 120px;
 }
 
+.hm-coach-select,
+.hm-coach-question,
+.hm-handoff-box {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-coach-select span,
+.hm-coach-question span,
+.hm-handoff-box span {
+  font-size: 13px;
+}
+
+.hm-handoff-box textarea,
+.hm-memory-new textarea {
+  max-height: 340px;
+  overflow: auto;
+  resize: vertical;
+}
+
 .hm-memory-box {
   display: grid;
   gap: 12px;
@@ -520,6 +541,63 @@
 .hm-memory-history-item p {
   color: var(--hm-ink);
   overflow-wrap: anywhere;
+}
+
+.hm-memory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.hm-memory-entry {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 8px;
+}
+
+.hm-memory-entry summary {
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.hm-memory-entry summary span,
+.hm-memory-entry summary small {
+  display: block;
+}
+
+.hm-memory-entry summary em {
+  color: var(--hm-muted);
+  font-size: 12px;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.hm-memory-entry pre {
+  max-height: 360px;
+  overflow: auto;
+  margin: 10px 0;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.hm-memory-new {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.45fr) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.hm-memory-new textarea {
+  grid-column: 1 / -1;
+  min-height: 150px;
+}
+
+.hm-memory-new button {
+  white-space: nowrap;
 }
 
 .hm-coach-result {
@@ -624,6 +702,10 @@
   }
 
   .hm-memory-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hm-memory-new {
     grid-template-columns: 1fr;
   }
 

@@ -59,6 +59,7 @@
       notes: "",
       decisions: "",
       handoff: "",
+      items: [],
       history: []
     };
   }
@@ -154,10 +155,18 @@
     if (!memory || typeof memory !== "object") return blank;
 
     const history = Array.isArray(memory.history) ? memory.history : [];
+    const items = Array.isArray(memory.items) ? memory.items : [];
     return {
       notes: String(memory.notes || ""),
       decisions: String(memory.decisions || ""),
       handoff: String(memory.handoff || ""),
+      items: items.slice(0, 80).map((item) => ({
+        id: String(item && item.id ? item.id : uid("memory")),
+        title: String(item && item.title ? item.title : ""),
+        kind: String(item && item.kind ? item.kind : "memo"),
+        body: String(item && item.body ? item.body : ""),
+        updatedAt: String(item && item.updatedAt ? item.updatedAt : "")
+      })).filter((item) => item.body.trim() || item.title.trim()),
       history: history.slice(0, 8).map((item) => ({
         id: String(item && item.id ? item.id : uid("coach")),
         at: String(item && item.at ? item.at : ""),
@@ -267,6 +276,90 @@
     memory.history = [entry, ...(Array.isArray(memory.history) ? memory.history : [])].slice(0, 8);
     const summary = handoff || `相談: ${limitText(message, 220)}\nAI: ${limitText(responseText, 420)}`;
     memory.handoff = limitText(`${today()} ${mode}\n${summary}\n\n${memory.handoff || ""}`, 5000);
+  }
+
+  function memoryKindLabel(kind) {
+    const labels = {
+      profile: "プロフィール",
+      values: "価値観",
+      family: "家族情報",
+      goal: "目標背景",
+      story: "小説・作品",
+      memo: "メモ",
+      other: "その他"
+    };
+    return labels[kind] || labels.memo;
+  }
+
+  function memoryEntries(memory) {
+    const entries = [];
+    if (memory.notes && memory.notes.trim()) {
+      entries.push({
+        id: "legacy-notes",
+        kind: "memo",
+        title: "AIに覚えておいてほしいこと",
+        body: memory.notes,
+        legacyField: "notes"
+      });
+    }
+    if (memory.decisions && memory.decisions.trim()) {
+      entries.push({
+        id: "legacy-decisions",
+        kind: "goal",
+        title: "大事な前提・決めたこと",
+        body: memory.decisions,
+        legacyField: "decisions"
+      });
+    }
+    return entries.concat(Array.isArray(memory.items) ? memory.items : []);
+  }
+
+  function renderMemoryVault(memory) {
+    const entries = memoryEntries(memory);
+    const list = entries.length ? entries.map((item) => {
+      const title = item.title || memoryKindLabel(item.kind);
+      const body = item.body || "";
+      const deleteButton = item.legacyField
+        ? `<button type="button" data-clear-memory-field="${item.legacyField}">削除</button>`
+        : `<button type="button" data-delete-memory-item="${item.id}">削除</button>`;
+      return `
+        <details class="hm-memory-entry">
+          <summary>
+            <span>
+              <strong>${escapeHtml(title)}</strong>
+              <small>${escapeHtml(memoryKindLabel(item.kind))}${item.updatedAt ? ` / ${escapeHtml(item.updatedAt.slice(0, 10))}` : ""}</small>
+            </span>
+            <em>${escapeHtml(limitText(body, 90))}</em>
+          </summary>
+          <pre>${escapeHtml(body)}</pre>
+          <div class="hm-buttons">${deleteButton}</div>
+        </details>
+      `;
+    }).join("") : '<p class="hm-muted">まだ保存情報はありません。</p>';
+
+    return `
+      <div class="hm-memory-box">
+        <div>
+          <strong>AIに渡す保存情報</strong>
+          <p class="hm-muted">小説、設定、価値観、家族情報などを項目ごとに保存できます。長文は折りたたんで確認できます。</p>
+        </div>
+        <div class="hm-memory-list">${list}</div>
+        <div class="hm-memory-new">
+          <select data-memory-new-kind>
+            <option value="memo">メモ</option>
+            <option value="story">小説・作品</option>
+            <option value="profile">プロフィール</option>
+            <option value="values">価値観</option>
+            <option value="family">家族情報</option>
+            <option value="goal">目標背景</option>
+            <option value="other">その他</option>
+          </select>
+          <input data-memory-new-title placeholder="項目名">
+          <textarea data-memory-new-body placeholder="ここに保存したい情報を書きます。長文でも、この欄だけでスクロールできます。"></textarea>
+          <button type="button" data-add-memory-item>保存情報に追加</button>
+        </div>
+      </div>
+    `;
   }
 
   function routineItems() {
@@ -565,7 +658,7 @@
     return `<label class="${extra}"><span>${label}</span><textarea data-journal-field="${key}" data-autosize>${escapeHtml(value)}</textarea></label>`;
   }
 
-  function renderCoach() {
+  function renderCoachLegacy() {
     const memory = activeAiMemory();
     const history = Array.isArray(memory.history) ? memory.history : [];
     const historyHtml = history.length
@@ -615,6 +708,53 @@
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
           <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderCoach() {
+    const memory = activeAiMemory();
+    const history = Array.isArray(memory.history) ? memory.history : [];
+    const historyHtml = history.length
+      ? history.map((item) => `
+        <div class="hm-memory-history-item">
+          <strong>${escapeHtml((item.at || "").slice(0, 10) || "相談")}</strong>
+          <span>${escapeHtml(item.mode || "goal")}</span>
+          <p>${escapeHtml(limitText(item.message, 180))}</p>
+        </div>
+      `).join("")
+      : '<p class="hm-muted">まだ相談履歴はありません。</p>';
+
+    return `
+      <section class="hm-panel">
+        <header><h2>AI目標コーチ</h2></header>
+        <div class="hm-coach">
+          <details class="hm-memory-history" open>
+            <summary>最近の相談履歴</summary>
+            ${historyHtml}
+          </details>
+          <label class="hm-coach-select">
+            <span>相談したい項目</span>
+            <select data-coach-mode>
+              <option value="goal">目標づくり</option>
+              <option value="perspectives">4観点</option>
+              <option value="board">64分解</option>
+              <option value="journal">日誌の振り返り</option>
+            </select>
+          </label>
+          <label class="hm-coach-question">
+            <span>相談したい質問内容</span>
+            <textarea data-coach-message data-autosize placeholder="例: 健康の目標を作りたい。4観点と64分解を一緒に考えてほしい。"></textarea>
+          </label>
+          <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
+          ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
+          <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
+          <label class="hm-handoff-box">
+            <span>AI引き継ぎメモ</span>
+            <textarea data-ai-memory-field="handoff" placeholder="AIとの相談後に自動で追記されます。必要に応じて手で直せます。">${escapeHtml(memory.handoff)}</textarea>
+          </label>
+          ${renderMemoryVault(memory)}
         </div>
       </section>
     `;
@@ -717,6 +857,47 @@
 
       if (event.target.closest("[data-save-now]")) {
         await saveNow();
+        return;
+      }
+
+      if (event.target.closest("[data-add-memory-item]")) {
+        const kind = root.querySelector("[data-memory-new-kind]")?.value || "memo";
+        const titleInput = root.querySelector("[data-memory-new-title]");
+        const bodyInput = root.querySelector("[data-memory-new-body]");
+        const title = titleInput?.value.trim() || "";
+        const body = bodyInput?.value.trim() || "";
+        if (!title && !body) return;
+
+        const memory = activeAiMemory();
+        memory.items = Array.isArray(memory.items) ? memory.items : [];
+        memory.items.unshift({
+          id: uid("memory"),
+          kind,
+          title: title || memoryKindLabel(kind),
+          body,
+          updatedAt: new Date().toISOString()
+        });
+        if (titleInput) titleInput.value = "";
+        if (bodyInput) bodyInput.value = "";
+        queueSave();
+        renderAll();
+        return;
+      }
+
+      const deleteMemoryItem = event.target.closest("[data-delete-memory-item]");
+      if (deleteMemoryItem) {
+        const memory = activeAiMemory();
+        memory.items = (Array.isArray(memory.items) ? memory.items : []).filter((item) => item.id !== deleteMemoryItem.dataset.deleteMemoryItem);
+        queueSave();
+        renderAll();
+        return;
+      }
+
+      const clearMemoryField = event.target.closest("[data-clear-memory-field]");
+      if (clearMemoryField) {
+        activeAiMemory()[clearMemoryField.dataset.clearMemoryField] = "";
+        queueSave();
+        renderAll();
         return;
       }
 
