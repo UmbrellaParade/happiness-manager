@@ -347,6 +347,26 @@
     return goal.plan.longDate || goal.deadline || "";
   }
 
+  function boardActionAtPath(goal) {
+    let themes = baseBoardThemes(goal, false);
+    let action = null;
+    for (const step of boardPath) {
+      action = themes[step.themeIndex]?.actions?.[step.actionIndex] || null;
+      if (!action) return null;
+      themes = Array.isArray(action.childThemes) ? action.childThemes : blankThemes();
+    }
+    return action;
+  }
+
+  function boardCenterTitle(goal) {
+    const action = boardActionAtPath(goal);
+    return action?.text || boardGoalTitle(goal);
+  }
+
+  function boardCenterDate(goal) {
+    return boardPath.length ? "" : boardGoalDate(goal);
+  }
+
   function ensureBoardVariant(goal, scope = boardScope) {
     goal.boardVariants = goal.boardVariants && typeof goal.boardVariants === "object" ? goal.boardVariants : blankBoardVariants();
     if (scope === "long") return goal.themes;
@@ -870,7 +890,7 @@
     return `
       <div class="hm-perspectives">
         ${items.map(([key, label, hint]) => `
-          <div class="hm-perspective">
+          <div class="hm-perspective hm-perspective-${key}">
             <div>
               <strong>${label}</strong>
               <span>${hint}</span>
@@ -906,7 +926,7 @@
         </div>
         <div class="hm-board-context">
           <strong>${escapeHtml(boardPathLabel(goal))}</strong>
-          <span>${escapeHtml(boardGoalTitle(goal))}${boardGoalDate(goal) ? ` / ${escapeHtml(boardGoalDate(goal))}` : ""}</span>
+          <span>${escapeHtml(boardCenterTitle(goal))}${boardCenterDate(goal) ? ` / ${escapeHtml(boardCenterDate(goal))}` : ""}</span>
           ${boardScope !== "long" && !Array.isArray(goal.boardVariants?.[boardScope]) ? '<small>長期目標の64を引き継いで表示中です。編集するとこの目標用にコピーして保存します。</small>' : ""}
         </div>
         ${state.boardMode === "open" ? renderOpenBoard(goal, themes) : renderEditBoard(goal, themes)}
@@ -921,7 +941,7 @@
       <div class="hm-board-edit">
         <div class="hm-theme-map">
           ${map.map((item) => {
-            if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(boardGoalTitle(goal))}</b><span>${escapeHtml(boardGoalDate(goal) || "期限なし")}</span></div>`;
+            if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(boardCenterTitle(goal))}</b><span>${escapeHtml(boardCenterDate(goal) || (boardPath.length ? boardPathLabel(goal) : "期限なし"))}</span></div>`;
             const theme = themes[item];
             return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動${theme.subs.length ? ` / サブ${theme.subs.length}` : ""}</span></button>`;
           }).join("")}
@@ -957,7 +977,7 @@
   function renderCenterBlock(goal, themes) {
     const order = [0, 1, 2, 3, "goal", 4, 5, 6, 7];
     return `<div class="hm-open-block center">${order.map((item) => {
-      if (item === "goal") return `<div class="hm-open-cell center"><b>${escapeHtml(boardGoalTitle(goal))}</b></div>`;
+      if (item === "goal") return `<div class="hm-open-cell center"><b>${escapeHtml(boardCenterTitle(goal))}</b></div>`;
       const theme = themes[item];
       return `<div class="hm-open-cell center"><small>テーマ ${item + 1}</small><input data-theme-title="${item}" value="${escapeHtml(theme.title)}" placeholder="テーマ"></div>`;
     }).join("")}</div>`;

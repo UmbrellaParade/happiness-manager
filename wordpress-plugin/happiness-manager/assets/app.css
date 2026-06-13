@@ -331,6 +331,7 @@
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(300px, 0.9fr);
   gap: 14px;
+  align-items: start;
 }
 
 .hm-board-toolbar {
@@ -358,11 +359,15 @@
 .hm-theme-map {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(112px, auto);
   gap: 8px;
+  align-self: start;
 }
 
 .hm-theme-card {
-  min-height: 104px;
+  min-height: 112px;
+  max-height: 160px;
+  overflow: auto;
   border: 1px solid var(--hm-line);
   border-radius: var(--hm-radius);
   background: #fff;
@@ -395,6 +400,10 @@
 .hm-actions {
   display: grid;
   gap: 10px;
+  align-self: start;
+  max-height: min(75vh, 760px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .hm-subs-field textarea {
@@ -432,18 +441,21 @@
 }
 
 .hm-open-scroll {
+  display: block;
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: auto !important;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
   padding-bottom: 4px;
 }
 
 .hm-open-board {
   width: max(100%, 900px);
   min-width: 900px;
+  max-width: none;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -893,6 +905,32 @@
     grid-column: 2;
   }
 
+  .hm-theme-card {
+    max-height: none;
+  }
+
+  .hm-actions {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .hm-perspective-selfTangible {
+    order: 1;
+  }
+
+  .hm-perspective-selfIntangible {
+    order: 2;
+  }
+
+  .hm-perspective-othersTangible {
+    order: 3;
+  }
+
+  .hm-perspective-othersIntangible {
+    order: 4;
+  }
+
   .hm-coach-select-grid,
   .hm-archive-grid {
     grid-template-columns: 1fr;
@@ -908,8 +946,9 @@
   }
 
   .hm-open-board {
-    width: max(100%, 900px);
+    width: 900px;
     min-width: 900px;
+    max-width: none;
   }
 }
 
@@ -966,5 +1005,21 @@
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-form-grid {
     gap: 10px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-open-scroll {
+    margin-right: -4px;
+    margin-left: -4px;
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) .p-fixBtnWrap,
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) .c-fixBtn,
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) .c-pageTop,
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) #pagetop,
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) .page_top,
+  body:has(.hm-frontend-app[data-mobile-mode="1"]) .pagetop {
+    bottom: calc(96px + env(safe-area-inset-bottom)) !important;
   }
 }

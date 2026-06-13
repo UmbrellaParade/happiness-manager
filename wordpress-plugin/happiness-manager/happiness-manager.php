@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.10
+ * Version: 0.1.11
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,19 +13,22 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.10';
+    private const VERSION = '0.1.11';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
     private const UPDATE_ASSET = 'happiness-manager-wordpress-plugin.zip';
     private const UPDATE_CACHE_KEY = 'hm_github_latest_release';
     private const STATE_META_KEY = 'hm_state_v1';
+    private const OPTION_DB_VERSION = 'hm_plugin_version';
     private const OPTION_FRONTEND_PAGE_ID = 'hm_frontend_page_id';
     private const OPTION_FRONTEND_PAGE_DISABLED = 'hm_frontend_page_disabled';
     private const OPTION_API_KEY = 'hm_openai_api_key';
     private const OPTION_MODEL = 'hm_openai_model';
+    private const DEFAULT_MODEL = 'gpt-5.5';
 
     public static function boot(): void {
+        add_action('init', [__CLASS__, 'maybe_upgrade_options'], 5);
         add_action('init', [__CLASS__, 'register_journal_post_type']);
         add_action('admin_menu', [__CLASS__, 'register_admin_page']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
@@ -42,8 +45,9 @@ final class Happiness_Manager_Plugin {
     }
 
     public static function activate(): void {
-        add_option(self::OPTION_MODEL, 'gpt-5-mini', '', false);
+        add_option(self::OPTION_MODEL, self::DEFAULT_MODEL, '', false);
         add_option(self::OPTION_API_KEY, '', '', false);
+        update_option(self::OPTION_DB_VERSION, self::VERSION, false);
         self::ensure_frontend_page(true);
         self::register_journal_post_type();
         flush_rewrite_rules();
@@ -64,11 +68,22 @@ final class Happiness_Manager_Plugin {
         ]);
     }
 
+    public static function maybe_upgrade_options(): void {
+        $installed_version = (string) get_option(self::OPTION_DB_VERSION, '');
+        if (version_compare($installed_version, '0.1.11', '<')) {
+            $model = (string) get_option(self::OPTION_MODEL, '');
+            if ($model === '' || $model === 'gpt-5-mini') {
+                update_option(self::OPTION_MODEL, self::DEFAULT_MODEL, false);
+            }
+            update_option(self::OPTION_DB_VERSION, self::VERSION, false);
+        }
+    }
+
     public static function register_settings(): void {
         register_setting('hm_settings', self::OPTION_MODEL, [
             'type' => 'string',
             'sanitize_callback' => [__CLASS__, 'sanitize_model'],
-            'default' => 'gpt-5-mini',
+            'default' => self::DEFAULT_MODEL,
         ]);
 
         register_setting('hm_settings', self::OPTION_API_KEY, [
@@ -101,7 +116,19 @@ final class Happiness_Manager_Plugin {
 
     public static function sanitize_model($value): string {
         $value = sanitize_text_field((string) $value);
-        return $value !== '' ? $value : 'gpt-5-mini';
+        return $value !== '' ? $value : self::DEFAULT_MODEL;
+    }
+
+    private static function model_choices(): array {
+        return [
+            'gpt-5.5' => 'GPT-5.5 / 最新・高品質',
+            'gpt-5.4' => 'GPT-5.4 / 高品質・少し抑えめ',
+            'gpt-5.4-mini' => 'GPT-5.4 mini / 軽量',
+            'gpt-5.4-nano' => 'GPT-5.4 nano / 低コスト',
+            'gpt-5.1' => 'GPT-5.1 / 旧標準',
+            'gpt-5.1-chat-latest' => 'GPT-5.1 chat latest / 会話向け',
+            'gpt-5-mini' => 'GPT-5 mini / 旧軽量',
+        ];
     }
 
     public static function sanitize_api_key($value): string {
@@ -161,7 +188,7 @@ final class Happiness_Manager_Plugin {
                 'restUrl' => esc_url_raw(rest_url('happiness-manager/v1')),
                 'nonce' => wp_create_nonce('wp_rest'),
                 'userId' => get_current_user_id(),
-                'model' => (string) get_option(self::OPTION_MODEL, 'gpt-5-mini'),
+                'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
                 'hasApiKey' => self::has_api_key(),
             ]);
         }
@@ -183,7 +210,7 @@ final class Happiness_Manager_Plugin {
             'restUrl' => esc_url_raw(rest_url('happiness-manager/v1')),
             'nonce' => wp_create_nonce('wp_rest'),
             'userId' => get_current_user_id(),
-            'model' => (string) get_option(self::OPTION_MODEL, 'gpt-5-mini'),
+            'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
             'hasApiKey' => self::has_api_key(),
         ]);
     }
@@ -427,7 +454,19 @@ final class Happiness_Manager_Plugin {
                     </label>
                     <label>
                         <span>モデル</span>
-                        <input type="text" name="<?php echo esc_attr(self::OPTION_MODEL); ?>" value="<?php echo esc_attr((string) get_option(self::OPTION_MODEL, 'gpt-5-mini')); ?>">
+                        <?php
+                        $current_model = self::sanitize_model(get_option(self::OPTION_MODEL, self::DEFAULT_MODEL));
+                        $model_choices = self::model_choices();
+                        ?>
+                        <select name="<?php echo esc_attr(self::OPTION_MODEL); ?>">
+                            <?php foreach ($model_choices as $model_id => $model_label) : ?>
+                                <option value="<?php echo esc_attr($model_id); ?>" <?php selected($current_model, $model_id); ?>><?php echo esc_html($model_label . ' (' . $model_id . ')'); ?></option>
+                            <?php endforeach; ?>
+                            <?php if (!isset($model_choices[$current_model])) : ?>
+                                <option value="<?php echo esc_attr($current_model); ?>" selected><?php echo esc_html($current_model . ' / 現在の手入力モデル'); ?></option>
+                            <?php endif; ?>
+                        </select>
+                        <span class="description">初期値はOpenAI公式の最新案内に合わせています。費用や速度を優先するときはmini/nano系に切り替えられます。</span>
                     </label>
                     <?php submit_button('AI設定を保存'); ?>
                 </form>
@@ -544,7 +583,7 @@ final class Happiness_Manager_Plugin {
 
         $prompt = self::build_ai_prompt_v2($mode, $message, $context);
         $body = [
-            'model' => self::sanitize_model(get_option(self::OPTION_MODEL, 'gpt-5-mini')),
+            'model' => self::sanitize_model(get_option(self::OPTION_MODEL, self::DEFAULT_MODEL)),
             'instructions' => self::ai_instructions_v2(),
             'input' => $prompt,
             'max_output_tokens' => 1200,
