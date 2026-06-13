@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.15
+ * Version: 0.1.16
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.15';
+    private const VERSION = '0.1.16';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -32,6 +32,7 @@ final class Happiness_Manager_Plugin {
         add_action('init', [__CLASS__, 'register_journal_post_type']);
         add_action('admin_menu', [__CLASS__, 'register_admin_page']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
+        add_action('admin_init', [__CLASS__, 'cleanup_duplicate_install']);
         add_action('rest_api_init', [__CLASS__, 'register_rest_routes']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_frontend_assets']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
@@ -103,6 +104,53 @@ final class Happiness_Manager_Plugin {
         $status = $page_id > 0 ? 'created' : 'failed';
         wp_safe_redirect(add_query_arg('hm_frontend_page', $status, admin_url('admin.php?page=happiness-manager')));
         exit;
+    }
+
+    public static function cleanup_duplicate_install(): void {
+        if (!current_user_can('delete_plugins')) {
+            return;
+        }
+
+        $plugins_dir = wp_normalize_path(WP_PLUGIN_DIR);
+        $duplicate_dir = wp_normalize_path(WP_PLUGIN_DIR . '/happiness-manager-wordpress-plugin');
+        $duplicate_file = $duplicate_dir . '/happiness-manager/happiness-manager.php';
+        $duplicate_plugin = 'happiness-manager-wordpress-plugin/happiness-manager/happiness-manager.php';
+
+        if (!file_exists($duplicate_file) || strpos($duplicate_dir, trailingslashit($plugins_dir)) !== 0) {
+            return;
+        }
+
+        if (!function_exists('is_plugin_active')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        if (is_plugin_active($duplicate_plugin)) {
+            return;
+        }
+
+        self::delete_directory($duplicate_dir);
+    }
+
+    private static function delete_directory(string $directory): void {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $path = $item->getPathname();
+            if ($item->isDir()) {
+                @rmdir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+
+        @rmdir($directory);
     }
 
     public static function mark_frontend_page_removed($post_id): void {
