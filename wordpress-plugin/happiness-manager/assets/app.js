@@ -142,6 +142,10 @@
     return normalizeLines(value).join("\n");
   }
 
+  function themeSubCount(theme) {
+    return normalizeLines(theme && theme.subs).length;
+  }
+
   function cloneThemes(themes) {
     return normalizeThemes(JSON.parse(JSON.stringify(themes || blankThemes())));
   }
@@ -1212,17 +1216,20 @@
     const selected = themes[selectedThemeIndex] || themes[0];
     return `
       <div class="hm-board-edit">
-        <div class="hm-theme-map">
-          ${map.map((item) => {
-            if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(boardCenterTitle(goal))}</b><span>${escapeHtml(boardCenterDate(goal) || (boardPath.length ? boardPathLabel(goal) : "期限なし"))}</span></div>`;
-            const theme = themes[item];
-            return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動${theme.subs.length ? ` / サブ${theme.subs.length}` : ""}</span></button>`;
-          }).join("")}
+        <div class="hm-theme-column">
+          <div class="hm-theme-map">
+            ${map.map((item) => {
+              if (item === "center") return `<div class="hm-theme-card center"><b>${escapeHtml(boardCenterTitle(goal))}</b><span>${escapeHtml(boardCenterDate(goal) || (boardPath.length ? boardPathLabel(goal) : "期限なし"))}</span></div>`;
+              const theme = themes[item];
+              const subCount = themeSubCount(theme);
+              return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動${subCount ? ` / サブ${subCount}` : ""}</span></button>`;
+            }).join("")}
+          </div>
+          ${renderThemeSubs(selected, selectedThemeIndex)}
         </div>
         <div class="hm-actions">
           <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
           ${renderSelectedThemeWindow(themes, selectedThemeIndex)}
-          <label class="hm-subs-field"><span>テーマのサブ項目・メモ</span><textarea data-theme-subs="${selectedThemeIndex}" placeholder="8つに絞る前の候補や補足を残せます">${escapeHtml(linesToText(selected.subs))}</textarea></label>
           ${selected.actions.map((action, index) => `
             <div class="hm-action-row">
               <span>${index + 1}</span>
@@ -1234,6 +1241,30 @@
           `).join("")}
         </div>
       </div>
+    `;
+  }
+
+  function renderThemeSubs(theme, themeIndex) {
+    const subs = Array.isArray(theme && theme.subs) ? theme.subs : [];
+    return `
+      <section class="hm-theme-subs-panel">
+        <div class="hm-theme-subs-head">
+          <div>
+            <strong>テーマ ${themeIndex + 1} のサブ</strong>
+            <small>8つに絞る前の候補や補足を残せます</small>
+          </div>
+          <button type="button" data-add-theme-sub="${themeIndex}">追加</button>
+        </div>
+        <div class="hm-theme-subs-list">
+          ${subs.length ? subs.map((item, index) => `
+            <div class="hm-theme-sub-row">
+              <span>${index + 1}</span>
+              <input data-theme-sub-index="${themeIndex}:${index}" value="${escapeHtml(String(item || ""))}" placeholder="サブ項目">
+              <button type="button" data-remove-theme-sub="${themeIndex}:${index}">削除</button>
+            </div>
+          `).join("") : '<p class="hm-muted">必要になったら追加できます。</p>'}
+        </div>
+      </section>
     `;
   }
 
@@ -1558,12 +1589,13 @@
   function summarizeThemes(themes) {
     if (!Array.isArray(themes)) return "";
     return themes.map((theme, themeIndex) => {
+      const subItems = normalizeLines(theme.subs);
       const actions = theme.actions
         .map((action, actionIndex) => action.text ? `${themeIndex + 1}-${actionIndex + 1}. ${action.text}` : "")
         .filter(Boolean)
         .slice(0, 8)
         .join("\n");
-      const subs = theme.subs && theme.subs.length ? `\n  サブ: ${theme.subs.join(" / ")}` : "";
+      const subs = subItems.length ? `\n  サブ: ${subItems.join(" / ")}` : "";
       return `${themeIndex + 1}. ${theme.title || "未設定"}${subs}${actions ? `\n${actions}` : ""}`;
     }).join("\n\n");
   }
@@ -1719,6 +1751,34 @@
         activeTab = "archive";
         renderAll();
         scheduleScrollToAppTitle(root, "smooth");
+        return;
+      }
+
+      const addThemeSub = event.target.closest("[data-add-theme-sub]");
+      if (addThemeSub) {
+        const themeIndex = Number(addThemeSub.dataset.addThemeSub);
+        const theme = boardThemesAtPath(activeGoal(), true)[themeIndex];
+        if (!theme) return;
+        if (!Array.isArray(theme.subs)) theme.subs = [];
+        if (theme.subs.length < 24) theme.subs.push("");
+        selectedThemeIndex = themeIndex;
+        queueSave();
+        renderAll();
+        window.setTimeout(() => {
+          root.querySelector(`[data-theme-sub-index="${themeIndex}:${theme.subs.length - 1}"]`)?.focus();
+        }, 0);
+        return;
+      }
+
+      const removeThemeSub = event.target.closest("[data-remove-theme-sub]");
+      if (removeThemeSub) {
+        const [themeIndex, subIndex] = removeThemeSub.dataset.removeThemeSub.split(":").map(Number);
+        const theme = boardThemesAtPath(activeGoal(), true)[themeIndex];
+        if (!theme || !Array.isArray(theme.subs)) return;
+        theme.subs.splice(subIndex, 1);
+        selectedThemeIndex = themeIndex;
+        queueSave();
+        renderAll();
         return;
       }
 
@@ -1896,6 +1956,15 @@
         boardThemesAtPath(activeGoal(), true)[themeIndex].title = target.value;
         selectedThemeIndex = themeIndex;
         updateThemePreview(root, themeIndex);
+        queueSave();
+      }
+      if (target.matches("[data-theme-sub-index]")) {
+        const [themeIndex, subIndex] = target.dataset.themeSubIndex.split(":").map(Number);
+        const theme = boardThemesAtPath(activeGoal(), true)[themeIndex];
+        if (!theme) return;
+        if (!Array.isArray(theme.subs)) theme.subs = [];
+        theme.subs[subIndex] = target.value;
+        selectedThemeIndex = themeIndex;
         queueSave();
       }
       if (target.matches("[data-theme-subs]")) {
