@@ -89,6 +89,34 @@
 .hm-toolbar [data-save-status] {
   color: var(--hm-muted);
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  border: 1px solid var(--hm-line);
+  border-radius: 999px;
+  background: #fff;
+  padding: 3px 8px;
+  font-weight: 800;
+}
+
+.hm-toolbar [data-status="saved"] {
+  border-color: #98c7b9;
+  background: #e8f4f0;
+  color: #1e5f4f;
+}
+
+.hm-toolbar [data-status="dirty"],
+.hm-toolbar [data-status="saving"] {
+  border-color: #e0c27a;
+  background: #fff8e6;
+  color: #75520a;
+}
+
+.hm-toolbar [data-status="error"] {
+  border-color: #e7a1a1;
+  background: #fff0f0;
+  color: #9b2c2c;
 }
 
 .hm-toolbar-controls {
@@ -99,6 +127,7 @@
 
 .hm-toolbar select,
 .hm-toolbar input,
+.hm-toolbar button,
 .hm-panel input,
 .hm-panel textarea,
 .hm-panel select {
@@ -112,8 +141,16 @@
 }
 
 .hm-toolbar select,
-.hm-toolbar input {
+.hm-toolbar input,
+.hm-toolbar button {
   width: auto;
+}
+
+.hm-toolbar button {
+  background: #253c36;
+  color: #fff;
+  border-color: #253c36;
+  font-weight: 800;
 }
 
 .hm-tabs {
@@ -470,7 +507,8 @@
 }
 
 .hm-handoff-box textarea,
-.hm-memory-new textarea {
+.hm-memory-new textarea,
+.hm-memory-body {
   max-height: 340px;
   overflow: auto;
   resize: vertical;
@@ -573,31 +611,69 @@
   overflow-wrap: anywhere;
 }
 
-.hm-memory-entry pre {
-  max-height: 360px;
-  overflow: auto;
-  margin: 10px 0;
-  border: 1px solid var(--hm-line);
-  border-radius: var(--hm-radius);
-  background: #fff;
-  padding: 10px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
+.hm-memory-editor,
 .hm-memory-new {
   display: grid;
-  grid-template-columns: minmax(130px, 0.45fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(160px, 0.45fr) minmax(0, 1fr);
   gap: 8px;
+  margin-top: 10px;
 }
 
+.hm-memory-add {
+  border: 1px dashed #b7c7c3;
+  border-radius: var(--hm-radius);
+  background: #fbfefd;
+  padding: 10px;
+}
+
+.hm-memory-add summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hm-memory-editor-field,
+.hm-memory-new label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-memory-editor-field span,
+.hm-memory-new label span {
+  font-size: 13px;
+}
+
+.hm-memory-editor .wide,
+.hm-memory-new .wide,
 .hm-memory-new textarea {
   grid-column: 1 / -1;
+}
+
+.hm-memory-body,
+.hm-memory-new textarea {
   min-height: 150px;
 }
 
 .hm-memory-new button {
+  justify-self: start;
   white-space: nowrap;
+}
+
+.hm-memory-image-link {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e5f4f;
+}
+
+.hm-memory-image-preview {
+  grid-column: 1 / -1;
+  max-width: min(100%, 320px);
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
 }
 
 .hm-coach-result {
@@ -705,6 +781,7 @@
     grid-template-columns: 1fr;
   }
 
+  .hm-memory-editor,
   .hm-memory-new {
     grid-template-columns: 1fr;
   }

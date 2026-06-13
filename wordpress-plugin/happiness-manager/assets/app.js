@@ -22,6 +22,7 @@
   let selectedThemeIndex = 0;
   let saveTimer = null;
   let saveStatus = "読み込み中";
+  let saveTone = "loading";
   let coachBusy = false;
   let coachText = "";
 
@@ -165,8 +166,9 @@
         title: String(item && item.title ? item.title : ""),
         kind: String(item && item.kind ? item.kind : "memo"),
         body: String(item && item.body ? item.body : ""),
+        imageUrl: String(item && item.imageUrl ? item.imageUrl : ""),
         updatedAt: String(item && item.updatedAt ? item.updatedAt : "")
-      })).filter((item) => item.body.trim() || item.title.trim()),
+      })).filter((item) => item.body.trim() || item.title.trim() || item.imageUrl.trim()),
       history: history.slice(0, 8).map((item) => ({
         id: String(item && item.id ? item.id : uid("coach")),
         at: String(item && item.at ? item.at : ""),
@@ -285,10 +287,40 @@
       family: "家族情報",
       goal: "目標背景",
       story: "小説・作品",
+      image: "画像",
       memo: "メモ",
       other: "その他"
     };
     return labels[kind] || labels.memo;
+  }
+
+  function memoryKindOptions(selected = "memo") {
+    const options = [
+      ["memo", "メモ"],
+      ["story", "小説・作品"],
+      ["image", "画像"],
+      ["profile", "プロフィール"],
+      ["values", "価値観"],
+      ["family", "家族情報"],
+      ["goal", "目標背景"],
+      ["other", "その他"]
+    ];
+    return options.map(([value, label]) => (
+      `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`
+    )).join("");
+  }
+
+  function findMemoryItem(id) {
+    const memory = activeAiMemory();
+    return (Array.isArray(memory.items) ? memory.items : []).find((item) => item.id === id);
+  }
+
+  function updateMemoryItem(id, key, value) {
+    const item = findMemoryItem(id);
+    if (!item) return;
+    item[key] = value;
+    item.updatedAt = new Date().toISOString();
+    queueSave();
   }
 
   function memoryEntries(memory) {
@@ -319,9 +351,38 @@
     const list = entries.length ? entries.map((item) => {
       const title = item.title || memoryKindLabel(item.kind);
       const body = item.body || "";
-      const deleteButton = item.legacyField
-        ? `<button type="button" data-clear-memory-field="${item.legacyField}">削除</button>`
-        : `<button type="button" data-delete-memory-item="${item.id}">削除</button>`;
+      const imageUrl = item.imageUrl || "";
+      const summary = imageUrl ? `画像URLあり / ${limitText(body || imageUrl, 90)}` : limitText(body, 90);
+      const editor = item.legacyField
+        ? `
+          <label class="hm-memory-editor-field wide">
+            <span>内容</span>
+            <textarea data-ai-memory-field="${item.legacyField}" class="hm-memory-body">${escapeHtml(body)}</textarea>
+          </label>
+          <div class="hm-buttons"><button type="button" data-clear-memory-field="${item.legacyField}">削除</button></div>
+        `
+        : `
+          <div class="hm-memory-editor">
+            <label class="hm-memory-editor-field">
+              <span>タイトル</span>
+              <input data-memory-item-title="${escapeHtml(item.id)}" value="${escapeHtml(title)}">
+            </label>
+            <label class="hm-memory-editor-field">
+              <span>種類</span>
+              <select data-memory-item-kind="${escapeHtml(item.id)}">${memoryKindOptions(item.kind)}</select>
+            </label>
+            <label class="hm-memory-editor-field wide">
+              <span>WordPressメディアURL（任意）</span>
+              <input type="url" data-memory-item-image-url="${escapeHtml(item.id)}" value="${escapeHtml(imageUrl)}" placeholder="https://...">
+            </label>
+            ${imageUrl ? `<a class="hm-memory-image-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noreferrer">画像URLを開く</a><img class="hm-memory-image-preview" src="${escapeHtml(imageUrl)}" alt="">` : ""}
+            <label class="hm-memory-editor-field wide">
+              <span>内容</span>
+              <textarea data-memory-item-body="${escapeHtml(item.id)}" class="hm-memory-body">${escapeHtml(body)}</textarea>
+            </label>
+          </div>
+          <div class="hm-buttons"><button type="button" data-delete-memory-item="${escapeHtml(item.id)}">削除</button></div>
+        `;
       return `
         <details class="hm-memory-entry">
           <summary>
@@ -329,10 +390,9 @@
               <strong>${escapeHtml(title)}</strong>
               <small>${escapeHtml(memoryKindLabel(item.kind))}${item.updatedAt ? ` / ${escapeHtml(item.updatedAt.slice(0, 10))}` : ""}</small>
             </span>
-            <em>${escapeHtml(limitText(body, 90))}</em>
+            <em>${escapeHtml(summary)}</em>
           </summary>
-          <pre>${escapeHtml(body)}</pre>
-          <div class="hm-buttons">${deleteButton}</div>
+          ${editor}
         </details>
       `;
     }).join("") : '<p class="hm-muted">まだ保存情報はありません。</p>';
@@ -344,20 +404,29 @@
           <p class="hm-muted">小説、設定、価値観、家族情報などを項目ごとに保存できます。長文は折りたたんで確認できます。</p>
         </div>
         <div class="hm-memory-list">${list}</div>
-        <div class="hm-memory-new">
-          <select data-memory-new-kind>
-            <option value="memo">メモ</option>
-            <option value="story">小説・作品</option>
-            <option value="profile">プロフィール</option>
-            <option value="values">価値観</option>
-            <option value="family">家族情報</option>
-            <option value="goal">目標背景</option>
-            <option value="other">その他</option>
-          </select>
-          <input data-memory-new-title placeholder="項目名">
-          <textarea data-memory-new-body placeholder="ここに保存したい情報を書きます。長文でも、この欄だけでスクロールできます。"></textarea>
-          <button type="button" data-add-memory-item>保存情報に追加</button>
-        </div>
+        <details class="hm-memory-add">
+          <summary>保存情報を追加</summary>
+          <div class="hm-memory-new">
+            <label>
+              <span>タイトル</span>
+              <input data-memory-new-title placeholder="例: 小説の第1章">
+            </label>
+            <label>
+              <span>種類</span>
+              <select data-memory-new-kind>${memoryKindOptions("memo")}</select>
+            </label>
+            <label class="wide">
+              <span>WordPressメディアURL（任意）</span>
+              <input type="url" data-memory-new-image-url placeholder="画像を保存した時だけURLを貼ります">
+            </label>
+            <label class="wide">
+              <span>内容</span>
+              <textarea data-memory-new-body placeholder="ここに保存したい情報を書きます。長文でも、この欄だけでスクロールできます。"></textarea>
+            </label>
+            <p class="hm-muted wide">画像URLは保存情報として残します。AI相談では画像そのものを自動送信しないので、画像解析ぶんのAPI料金は勝手に増えません。</p>
+            <button type="button" data-add-memory-item>保存情報に追加</button>
+          </div>
+        </details>
       </div>
     `;
   }
@@ -402,16 +471,19 @@
       state = normalizeState(data.state);
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       saveStatus = "WordPressから読み込み済み";
+      saveTone = "saved";
     } catch (error) {
       const fallback = localStorage.getItem(STORAGE_FALLBACK_KEY);
       state = normalizeState(fallback ? JSON.parse(fallback) : null);
       saveStatus = `一時保存で起動: ${error.message}`;
+      saveTone = "error";
     }
     renderAll();
   }
 
   function queueSave() {
-    saveStatus = "未保存の変更あり";
+    saveStatus = "未保存の変更があります";
+    saveTone = "dirty";
     renderAll(false);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveNow, 700);
@@ -419,14 +491,22 @@
 
   async function saveNow() {
     try {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      saveStatus = "WordPressに保存中...";
+      saveTone = "saving";
+      renderAll(false);
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
-      await apiFetch("/state", {
+      const data = await apiFetch("/state", {
         method: "POST",
         body: JSON.stringify({ state })
       });
-      saveStatus = "WordPressに保存済み";
+      const savedAt = data.savedAt ? data.savedAt.slice(11, 19) : new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      saveStatus = `WordPressに保存済み ${savedAt}`;
+      saveTone = "saved";
     } catch (error) {
       saveStatus = `保存エラー: ${error.message}`;
+      saveTone = "error";
     }
     renderAll(false);
   }
@@ -445,7 +525,10 @@
 
   function updateStatus(root) {
     const status = root.querySelector("[data-save-status]");
-    if (status) status.textContent = saveStatus;
+    if (status) {
+      status.textContent = saveStatus;
+      status.dataset.status = saveTone;
+    }
   }
 
   function resizeAutosizeTextarea(textarea) {
@@ -463,9 +546,10 @@
         <div class="hm-toolbar">
           <div>
             <strong>Happiness Manager</strong>
-            <span data-save-status>${escapeHtml(saveStatus)}</span>
+            <span data-save-status data-status="${escapeHtml(saveTone)}">${escapeHtml(saveStatus)}</span>
           </div>
           <div class="hm-toolbar-controls">
+            <button type="button" data-save-now>今すぐ保存</button>
             <select data-profile-select>${state.profiles.map((profile) => `<option value="${profile.id}" ${profile.id === state.activeProfileId ? "selected" : ""}>${escapeHtml(profile.name)}</option>`).join("")}</select>
             <input type="date" data-active-date value="${escapeHtml(activeDate)}">
           </div>
@@ -864,9 +948,11 @@
         const kind = root.querySelector("[data-memory-new-kind]")?.value || "memo";
         const titleInput = root.querySelector("[data-memory-new-title]");
         const bodyInput = root.querySelector("[data-memory-new-body]");
+        const imageUrlInput = root.querySelector("[data-memory-new-image-url]");
         const title = titleInput?.value.trim() || "";
         const body = bodyInput?.value.trim() || "";
-        if (!title && !body) return;
+        const imageUrl = imageUrlInput?.value.trim() || "";
+        if (!title && !body && !imageUrl) return;
 
         const memory = activeAiMemory();
         memory.items = Array.isArray(memory.items) ? memory.items : [];
@@ -875,10 +961,12 @@
           kind,
           title: title || memoryKindLabel(kind),
           body,
+          imageUrl,
           updatedAt: new Date().toISOString()
         });
         if (titleInput) titleInput.value = "";
         if (bodyInput) bodyInput.value = "";
+        if (imageUrlInput) imageUrlInput.value = "";
         queueSave();
         renderAll();
         return;
@@ -983,6 +1071,15 @@
         activeAiMemory()[target.dataset.aiMemoryField] = target.value;
         queueSave();
       }
+      if (target.matches("[data-memory-item-title]")) {
+        updateMemoryItem(target.dataset.memoryItemTitle, "title", target.value);
+      }
+      if (target.matches("[data-memory-item-body]")) {
+        updateMemoryItem(target.dataset.memoryItemBody, "body", target.value);
+      }
+      if (target.matches("[data-memory-item-image-url]")) {
+        updateMemoryItem(target.dataset.memoryItemImageUrl, "imageUrl", target.value);
+      }
     });
 
     root.addEventListener("change", async (event) => {
@@ -1001,6 +1098,9 @@
       if (target.matches("[data-routine-check]")) {
         dailyRecord().checks[target.dataset.routineCheck] = target.checked;
         queueSave();
+      }
+      if (target.matches("[data-memory-item-kind]")) {
+        updateMemoryItem(target.dataset.memoryItemKind, "kind", target.value);
       }
       if (target.matches("[data-import-json]") && target.files[0]) {
         const text = await target.files[0].text();

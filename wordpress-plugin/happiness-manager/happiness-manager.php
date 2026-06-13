@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.8
+ * Version: 0.1.9
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.8';
+    private const VERSION = '0.1.9';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -595,6 +595,7 @@ final class Happiness_Manager_Plugin {
             . "- aiMemory.notes は、AIに覚えておいてほしい長期情報です。\n"
             . "- aiMemory.decisions は、本人が決めたこと・大事な前提です。\n"
             . "- aiMemory.handoff は、前回までのAI引き継ぎメモです。\n"
+            . "- aiMemory.items は、項目ごとに保存した長期情報です。imageUrl がある場合、それはWordPressメディアなどの保存先URLです。このAPI呼び出しでは画像本体を入力画像として送っていないため、画像内容を見た前提で断定しないでください。\n"
             . "- aiMemory.history は、最近の相談履歴です。\n"
             . "- goal、daily、journal、recentJournals は現在の目標・状態・日誌です。\n\n"
             . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで提案してください。"
