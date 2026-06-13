@@ -74,6 +74,12 @@
   padding: 16px;
 }
 
+.hm-shell > *,
+.hm-view {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .hm-toolbar {
   display: flex;
   justify-content: space-between;
@@ -443,6 +449,7 @@
 .hm-open-scroll {
   display: block;
   width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto !important;
   overflow-y: hidden;
