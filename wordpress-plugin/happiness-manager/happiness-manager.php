@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.14
+ * Version: 0.1.15
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.14';
+    private const VERSION = '0.1.15';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -530,6 +530,40 @@ final class Happiness_Manager_Plugin {
         return is_user_logged_in() && current_user_can('read');
     }
 
+    private static function is_suspicious_text(string $text): bool {
+        if (preg_match('/\?{3,}/', $text)) {
+            return true;
+        }
+
+        $markers = [];
+        $marker_count = preg_match_all('/[縺繧譁蜷髟逶谺菫譛螟蜍隕荳譌驕諠霆繝]/u', $text, $markers);
+        return $marker_count >= 3 && preg_match('/[｡-ﾟ]/u', $text);
+    }
+
+    private static function collect_corrupted_text_paths($value, string $path, array &$paths): void {
+        if (count($paths) >= 8) {
+            return;
+        }
+
+        if (is_string($value)) {
+            if (self::is_suspicious_text($value)) {
+                $paths[] = $path;
+            }
+            return;
+        }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $key => $item) {
+            self::collect_corrupted_text_paths($item, $path . '.' . (string) $key, $paths);
+            if (count($paths) >= 8) {
+                return;
+            }
+        }
+    }
+
     public static function rest_get_state(WP_REST_Request $request): WP_REST_Response {
         $user_id = get_current_user_id();
         $state = get_user_meta($user_id, self::STATE_META_KEY, true);
@@ -552,6 +586,19 @@ final class Happiness_Manager_Plugin {
         $encoded = wp_json_encode($state);
         if (!is_string($encoded) || strlen($encoded) > 2000000) {
             return new WP_Error('hm_state_too_large', 'Saved data is too large.', ['status' => 413]);
+        }
+
+        $corrupted_paths = [];
+        self::collect_corrupted_text_paths($state, 'state', $corrupted_paths);
+        if (count($corrupted_paths) >= 3) {
+            return new WP_Error(
+                'hm_corrupted_state',
+                '文字化けした可能性のある保存データを検出したため、保存を止めました。ページを再読み込みしてください。',
+                [
+                    'status' => 409,
+                    'paths' => array_slice($corrupted_paths, 0, 5),
+                ]
+            );
         }
 
         $user_id = get_current_user_id();

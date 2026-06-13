@@ -28,6 +28,7 @@
   let saveTimer = null;
   let saveStatus = "読み込み中";
   let saveTone = "loading";
+  let saveLocked = false;
   let coachBusy = false;
   let coachText = "";
 
@@ -306,6 +307,53 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function suspiciousText(value) {
+    const text = String(value || "");
+    if (/\?{3,}/.test(text)) return true;
+    const markers = text.match(/[縺繧譁蜷髟逶谺菫譛螟蜍隕荳譌驕諠霆繝]/g) || [];
+    return markers.length >= 3 && /[｡-ﾟ]/u.test(text);
+  }
+
+  function collectCorruptedTextPaths(value, path = "state", findings = []) {
+    if (typeof value === "string") {
+      if (suspiciousText(value)) findings.push(path);
+      return findings;
+    }
+    if (!value || typeof value !== "object") return findings;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => collectCorruptedTextPaths(item, `${path}[${index}]`, findings));
+      return findings;
+    }
+    Object.entries(value).forEach(([key, item]) => {
+      collectCorruptedTextPaths(item, `${path}.${key}`, findings);
+    });
+    return findings;
+  }
+
+  function corruptedStateFindings(value) {
+    return collectCorruptedTextPaths(value).slice(0, 8);
+  }
+
+  function hasCorruptedState(value) {
+    return collectCorruptedTextPaths(value).length >= 3;
+  }
+
+  function cleanFallbackState() {
+    const fallback = localStorage.getItem(STORAGE_FALLBACK_KEY);
+    if (!fallback) return null;
+    try {
+      const fallbackState = normalizeState(JSON.parse(fallback));
+      if (hasCorruptedState(fallbackState)) {
+        localStorage.removeItem(STORAGE_FALLBACK_KEY);
+        return null;
+      }
+      return fallbackState;
+    } catch (error) {
+      localStorage.removeItem(STORAGE_FALLBACK_KEY);
+      return null;
+    }
   }
 
   function activeProfile() {
@@ -768,14 +816,29 @@
   async function loadState() {
     try {
       const data = await apiFetch("/state");
-      state = normalizeState(data.state);
+      const loadedState = normalizeState(data.state);
+      const findings = corruptedStateFindings(loadedState);
+      if (findings.length >= 3) {
+        const fallbackState = cleanFallbackState();
+        state = fallbackState || defaultState();
+        saveLocked = true;
+        saveStatus = `文字化けした保存データを検出したため保存を止めました。ページを再読み込みしてください。`;
+        saveTone = "error";
+        renderAll();
+        return;
+      }
+      state = loadedState;
+      saveLocked = false;
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       saveStatus = "WordPressから読み込み済み";
       saveTone = "saved";
     } catch (error) {
-      const fallback = localStorage.getItem(STORAGE_FALLBACK_KEY);
-      state = normalizeState(fallback ? JSON.parse(fallback) : null);
-      saveStatus = `一時保存で起動: ${error.message}`;
+      const fallbackState = cleanFallbackState();
+      state = fallbackState || defaultState();
+      saveLocked = !fallbackState;
+      saveStatus = fallbackState
+        ? `一時保存で起動: ${error.message}`
+        : `読み込みに失敗したため保存を止めました: ${error.message}`;
       saveTone = "error";
     }
     renderAll();
@@ -793,6 +856,21 @@
     try {
       clearTimeout(saveTimer);
       saveTimer = null;
+      if (saveLocked) {
+        saveStatus = "保護モード中のため保存を止めました。ページを再読み込みしてください。";
+        saveTone = "error";
+        renderAll(false);
+        return;
+      }
+      const findings = corruptedStateFindings(state);
+      if (findings.length >= 3) {
+        saveLocked = true;
+        localStorage.removeItem(STORAGE_FALLBACK_KEY);
+        saveStatus = "文字化けした可能性のあるデータを検出したため保存を止めました。ページを再読み込みしてください。";
+        saveTone = "error";
+        renderAll(false);
+        return;
+      }
       saveStatus = "WordPressに保存中...";
       saveTone = "saving";
       renderAll(false);
@@ -1651,7 +1729,15 @@
       }
       if (target.matches("[data-import-json]") && target.files[0]) {
         const text = await target.files[0].text();
-        state = normalizeState(JSON.parse(text));
+        const importedState = normalizeState(JSON.parse(text));
+        if (hasCorruptedState(importedState)) {
+          saveStatus = "文字化けした可能性のあるJSONのため読み込みを止めました。";
+          saveTone = "error";
+          renderAll(false);
+          return;
+        }
+        state = importedState;
+        saveLocked = false;
         queueSave();
         renderAll();
       }
