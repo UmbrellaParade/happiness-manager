@@ -91,6 +91,29 @@
   text-shadow: none !important;
 }
 
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h1,
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h2,
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h3,
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h4,
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h5,
+.hm-app-root.hm-frontend-app .hm-shell .hm-panel h6,
+.hm-app-root .hm-shell .hm-panel h1,
+.hm-app-root .hm-shell .hm-panel h2,
+.hm-app-root .hm-shell .hm-panel h3,
+.hm-app-root .hm-shell .hm-panel h4,
+.hm-app-root .hm-shell .hm-panel h5,
+.hm-app-root .hm-shell .hm-panel h6 {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+  text-shadow: none !important;
+}
+
 .hm-app-root * {
   box-sizing: border-box;
 }
