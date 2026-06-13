@@ -1122,6 +1122,7 @@
         </div>
         <div class="hm-actions">
           <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
+          ${renderSelectedThemeWindow(themes, selectedThemeIndex)}
           <label class="hm-subs-field"><span>テーマのサブ項目・メモ</span><textarea data-theme-subs="${selectedThemeIndex}" placeholder="8つに絞る前の候補や補足を残せます">${escapeHtml(linesToText(selected.subs))}</textarea></label>
           ${selected.actions.map((action, index) => `
             <div class="hm-action-row">
@@ -1132,6 +1133,29 @@
               <textarea data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" data-action-subs placeholder="サブ項目・次の一手メモ">${escapeHtml(linesToText(action.subs))}</textarea>
             </div>
           `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSelectedThemeWindow(themes, themeIndex) {
+    const theme = themes[themeIndex] || themes[0];
+    if (!theme) return "";
+    const order = [0, 1, 2, 3, "theme", 4, 5, 6, 7];
+    return `
+      <div class="hm-selected-theme-window">
+        <div class="hm-selected-theme-window-head">
+          <strong>テーマ ${themeIndex + 1} のオープンウィンドウ</strong>
+          <small>中心にテーマ、周囲に8つの行動</small>
+        </div>
+        <div class="hm-open-block hm-open-block-selected">
+          ${order.map((item) => {
+            if (item === "theme") {
+              return `<div class="hm-open-cell center"><small>テーマ ${themeIndex + 1}</small><b data-theme-preview-title="${themeIndex}">${escapeHtml(theme.title || "未設定")}</b></div>`;
+            }
+            const action = theme.actions[item];
+            return `<div class="hm-open-cell"><small>${themeIndex + 1}-${item + 1}${action.subs.length ? ` / サブ${action.subs.length}` : ""}</small><p data-theme-preview-action="${themeIndex}:${item}">${escapeHtml(action.text || "未設定")}</p>${action.routine ? "<em>毎日</em>" : ""}</div>`;
+          }).join("")}
         </div>
       </div>
     `;
@@ -1165,6 +1189,19 @@
       const action = theme.actions[item];
       return `<div class="hm-open-cell"><small>${themeIndex + 1}-${item + 1}${action.subs.length ? ` / サブ${action.subs.length}` : ""}</small><textarea data-action-theme-index="${themeIndex}" data-action-index="${item}" placeholder="行動">${escapeHtml(action.text)}</textarea><button type="button" data-routine-theme="${themeIndex}" data-routine-action="${item}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button></div>`;
     }).join("")}</div>`;
+  }
+
+  function updateThemePreview(root, themeIndex, actionIndex = null) {
+    const theme = boardThemesAtPath(activeGoal(), false)[themeIndex];
+    if (!theme) return;
+    root.querySelectorAll(`[data-theme-preview-title="${themeIndex}"]`).forEach((element) => {
+      element.textContent = theme.title || "未設定";
+    });
+    if (actionIndex === null) return;
+    const action = theme.actions[actionIndex];
+    root.querySelectorAll(`[data-theme-preview-action="${themeIndex}:${actionIndex}"]`).forEach((element) => {
+      element.textContent = action?.text || "未設定";
+    });
   }
 
   function renderJournal() {
@@ -1695,6 +1732,7 @@
         const themeIndex = Number(target.dataset.themeTitle);
         boardThemesAtPath(activeGoal(), true)[themeIndex].title = target.value;
         selectedThemeIndex = themeIndex;
+        updateThemePreview(root, themeIndex);
         queueSave();
       }
       if (target.matches("[data-theme-subs]")) {
@@ -1711,6 +1749,7 @@
           action.subs = normalizeLines(target.value);
         } else {
           action.text = target.value;
+          updateThemePreview(root, themeIndex, actionIndex);
         }
         selectedThemeIndex = themeIndex;
         queueSave();

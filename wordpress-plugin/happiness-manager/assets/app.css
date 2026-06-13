@@ -511,11 +511,60 @@
   resize: none;
 }
 
+.hm-open-cell b,
+.hm-open-cell p {
+  min-width: 0;
+  margin: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.hm-open-cell em {
+  justify-self: end;
+  border: 1px solid #98c7b9;
+  border-radius: 999px;
+  background: #e8f4f0;
+  color: #1e5f4f;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .hm-open-cell button {
   justify-self: end;
   min-height: 22px;
   padding: 2px 6px;
   font-size: 11px;
+}
+
+.hm-selected-theme-window {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fbfefd;
+  padding: 10px;
+}
+
+.hm-selected-theme-window-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.hm-selected-theme-window-head small {
+  color: var(--hm-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.hm-open-block-selected {
+  grid-auto-rows: 86px;
+  padding: 5px;
 }
 
 .hm-slider {
