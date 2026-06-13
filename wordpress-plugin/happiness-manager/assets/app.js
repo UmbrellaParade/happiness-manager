@@ -3,6 +3,11 @@
   const roots = Array.from(document.querySelectorAll("[data-hm-app]"));
   if (!roots.length) return;
 
+  const hasMobileRoot = roots.some((root) => root.dataset.mobileMode === "1");
+  if (hasMobileRoot && "scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+  }
+
   const STORAGE_FALLBACK_KEY = "hm-wp-fallback-state";
   const tabs = [
     ["goals", "目標"],
@@ -354,6 +359,44 @@
       localStorage.removeItem(STORAGE_FALLBACK_KEY);
       return null;
     }
+  }
+
+  function shouldReturnToAppTitle(root) {
+    return root.dataset.mobileMode === "1" || (window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+  }
+
+  function fixedTopOffset() {
+    let offset = 12;
+    const elements = document.querySelectorAll("#wpadminbar, #header, .l-header, .site-header, body > header");
+    elements.forEach((element) => {
+      const style = window.getComputedStyle(element);
+      if (style.position !== "fixed" && style.position !== "sticky") return;
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0 || rect.top > 8 || rect.bottom <= 0) return;
+      offset = Math.max(offset, Math.min(180, rect.bottom + 12));
+    });
+    return offset;
+  }
+
+  function scrollToAppTitle(root, behavior = "auto") {
+    if (!shouldReturnToAppTitle(root)) return;
+    const target = root.querySelector(".hm-toolbar strong") || root.querySelector(".hm-toolbar") || root;
+    const top = target.getBoundingClientRect().top + window.scrollY - fixedTopOffset();
+    window.scrollTo({ top: Math.max(0, top), behavior });
+  }
+
+  function scheduleScrollToAppTitle(root, behavior = "auto") {
+    if (!shouldReturnToAppTitle(root)) return;
+    const delays = behavior === "smooth" ? [0] : [0, 180, 520];
+    window.requestAnimationFrame(() => {
+      delays.forEach((delay) => {
+        window.setTimeout(() => scrollToAppTitle(root, behavior), delay);
+      });
+    });
+  }
+
+  function scrollAllToAppTitle(behavior = "auto") {
+    roots.forEach((root) => scheduleScrollToAppTitle(root, behavior));
   }
 
   function activeProfile() {
@@ -825,6 +868,7 @@
         saveStatus = `文字化けした保存データを検出したため保存を止めました。ページを再読み込みしてください。`;
         saveTone = "error";
         renderAll();
+        scrollAllToAppTitle("auto");
         return;
       }
       state = loadedState;
@@ -842,6 +886,7 @@
       saveTone = "error";
     }
     renderAll();
+    scrollAllToAppTitle("auto");
   }
 
   function queueSave() {
@@ -1430,6 +1475,7 @@
       if (tabButton) {
         activeTab = tabButton.dataset.tab;
         renderAll();
+        scheduleScrollToAppTitle(root, "smooth");
         return;
       }
 
@@ -1488,6 +1534,7 @@
         queueSave();
         activeTab = "archive";
         renderAll();
+        scheduleScrollToAppTitle(root, "smooth");
         return;
       }
 
@@ -1496,6 +1543,7 @@
         queueSave();
         activeTab = "archive";
         renderAll();
+        scheduleScrollToAppTitle(root, "smooth");
         return;
       }
 
@@ -1742,6 +1790,10 @@
         renderAll();
       }
     });
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) scrollAllToAppTitle("auto");
   });
 
   loadState();
