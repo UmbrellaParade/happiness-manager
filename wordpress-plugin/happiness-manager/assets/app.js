@@ -449,20 +449,51 @@
     return `${state.activeProfileId}|${activeDate}`;
   }
 
-  function dailyRecord() {
-    const key = dayKey();
-    if (!state.daily[key]) {
-      state.daily[key] = { mood: 3, energy: 3, load: 3, focus: 3, checks: {} };
-    }
-    return state.daily[key];
+  function blankDailyRecord() {
+    return { mood: 3, energy: 3, load: 3, focus: 3, checks: {} };
   }
 
-  function journalRecord() {
+  function dailyValue(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 3;
+    return Math.min(5, Math.max(1, Math.round(number)));
+  }
+
+  function normalizeDailyRecord(record) {
+    const source = record && typeof record === "object" ? record : {};
+    return {
+      mood: dailyValue(source.mood),
+      energy: dailyValue(source.energy),
+      load: dailyValue(source.load),
+      focus: dailyValue(source.focus),
+      checks: source.checks && typeof source.checks === "object" ? source.checks : {}
+    };
+  }
+
+  function dailyRecord(forWrite = false) {
     const key = dayKey();
-    if (!state.journals[key]) {
-      state.journals[key] = { best: "", learned: "", next: "", gratitude: "", selfTalk: "", memo: "" };
+    const record = normalizeDailyRecord(state.daily[key] || blankDailyRecord());
+    if (forWrite) {
+      state.daily[key] = record;
     }
-    return state.journals[key];
+    return record;
+  }
+
+  function blankJournalRecord() {
+    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", memo: "" };
+  }
+
+  function normalizeJournalRecord(record) {
+    return Object.assign(blankJournalRecord(), record && typeof record === "object" ? record : {});
+  }
+
+  function journalRecord(forWrite = false) {
+    const key = dayKey();
+    const record = normalizeJournalRecord(state.journals[key]);
+    if (forWrite) {
+      state.journals[key] = record;
+    }
+    return record;
   }
 
   function activeAiMemory() {
@@ -1125,7 +1156,7 @@
   }
 
   function coachSelectionContext(goal) {
-    const journal = journalRecord();
+    const journal = journalRecord(false);
     const selectedTheme = activeBoardTheme(goal, false);
     const selectedActions = selectedTheme?.actions || [];
     return {
@@ -1472,8 +1503,8 @@
               context: {
                 activeDate,
                 goal: activeGoal(),
-                daily: dailyRecord(),
-                journal: journalRecord(),
+                daily: dailyRecord(false),
+                journal: journalRecord(false),
                 recentJournals: recentJournalSummaries(),
                 coachSelection: coachSelectionContext(activeGoal()),
                 aiMemory: activeAiMemory()
@@ -1532,12 +1563,15 @@
         queueSave();
       }
       if (target.matches("[data-daily-field]")) {
-        dailyRecord()[target.dataset.dailyField] = Number(target.value);
+        const value = dailyValue(target.value);
+        dailyRecord(true)[target.dataset.dailyField] = value;
+        target.value = String(value);
+        const output = target.closest(".hm-slider")?.querySelector("b");
+        if (output) output.textContent = String(value);
         queueSave();
-        renderAll();
       }
       if (target.matches("[data-journal-field]")) {
-        journalRecord()[target.dataset.journalField] = target.value;
+        journalRecord(true)[target.dataset.journalField] = target.value;
         queueSave();
       }
       if (target.matches("[data-ai-memory-field]")) {
@@ -1570,7 +1604,7 @@
         coachTarget = target.value || coachTargetOptions(activeGoal())[0][0];
       }
       if (target.matches("[data-routine-check]")) {
-        dailyRecord().checks[target.dataset.routineCheck] = target.checked;
+        dailyRecord(true).checks[target.dataset.routineCheck] = target.checked;
         queueSave();
       }
       if (target.matches("[data-memory-item-kind]")) {
