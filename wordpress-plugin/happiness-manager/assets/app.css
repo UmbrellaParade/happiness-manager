@@ -455,6 +455,73 @@
   min-height: 120px;
 }
 
+.hm-memory-box {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 12px;
+}
+
+.hm-memory-box > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.hm-memory-box p {
+  margin: 0;
+}
+
+.hm-memory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hm-memory-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-memory-grid label span {
+  font-size: 13px;
+}
+
+.hm-memory-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.hm-memory-grid textarea {
+  min-height: 84px;
+}
+
+.hm-memory-history {
+  border-top: 1px solid var(--hm-line);
+  padding-top: 8px;
+}
+
+.hm-memory-history summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hm-memory-history-item {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.hm-memory-history-item p {
+  color: var(--hm-ink);
+  overflow-wrap: anywhere;
+}
+
 .hm-coach-result {
   min-height: 120px;
   border: 1px solid var(--hm-line);
@@ -554,6 +621,10 @@
   .hm-action-row button {
     grid-column: 2;
     width: max-content;
+  }
+
+  .hm-memory-grid {
+    grid-template-columns: 1fr;
   }
 
   .hm-open-board {

@@ -54,6 +54,15 @@
     };
   }
 
+  function blankAiMemory() {
+    return {
+      notes: "",
+      decisions: "",
+      handoff: "",
+      history: []
+    };
+  }
+
   function createGoal(profileId) {
     return {
       id: uid("goal"),
@@ -85,7 +94,8 @@
       boardMode: "edit",
       goals: [goal],
       daily: {},
-      journals: {}
+      journals: {},
+      aiMemory: { [profileId]: blankAiMemory() }
     };
   }
 
@@ -97,10 +107,21 @@
     next.boardMode = next.boardMode === "open" ? "open" : "edit";
     next.daily = next.daily && typeof next.daily === "object" ? next.daily : {};
     next.journals = next.journals && typeof next.journals === "object" ? next.journals : {};
+    next.aiMemory = next.aiMemory && typeof next.aiMemory === "object" ? next.aiMemory : {};
 
     if (!next.profiles.some((profile) => profile.id === next.activeProfileId)) {
       next.activeProfileId = next.profiles[0].id;
     }
+
+    next.profiles.forEach((profile) => {
+      next.aiMemory[profile.id] = normalizeAiMemory(next.aiMemory[profile.id]);
+    });
+
+    Object.keys(next.aiMemory).forEach((profileId) => {
+      if (!next.profiles.some((profile) => profile.id === profileId)) {
+        delete next.aiMemory[profileId];
+      }
+    });
 
     if (!next.goals.some((goal) => goal.profileId === next.activeProfileId)) {
       next.goals.push(createGoal(next.activeProfileId));
@@ -126,6 +147,26 @@
     }
 
     return next;
+  }
+
+  function normalizeAiMemory(memory) {
+    const blank = blankAiMemory();
+    if (!memory || typeof memory !== "object") return blank;
+
+    const history = Array.isArray(memory.history) ? memory.history : [];
+    return {
+      notes: String(memory.notes || ""),
+      decisions: String(memory.decisions || ""),
+      handoff: String(memory.handoff || ""),
+      history: history.slice(0, 8).map((item) => ({
+        id: String(item && item.id ? item.id : uid("coach")),
+        at: String(item && item.at ? item.at : ""),
+        mode: String(item && item.mode ? item.mode : ""),
+        message: String(item && item.message ? item.message : ""),
+        response: String(item && item.response ? item.response : ""),
+        handoff: String(item && item.handoff ? item.handoff : "")
+      }))
+    };
   }
 
   function escapeHtml(value) {
@@ -173,6 +214,59 @@
       state.journals[key] = { best: "", learned: "", next: "", gratitude: "", selfTalk: "", memo: "" };
     }
     return state.journals[key];
+  }
+
+  function activeAiMemory() {
+    if (!state.aiMemory || typeof state.aiMemory !== "object") {
+      state.aiMemory = {};
+    }
+    if (!state.aiMemory[state.activeProfileId]) {
+      state.aiMemory[state.activeProfileId] = blankAiMemory();
+    }
+    return state.aiMemory[state.activeProfileId];
+  }
+
+  function limitText(value, maxLength = 900) {
+    const text = String(value || "").trim();
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+  }
+
+  function extractHandoff(responseText) {
+    const text = String(responseText || "");
+    const match = text.match(/(?:^|\n)#{1,3}\s*AI引き継ぎメモ\s*\n([\s\S]*)/);
+    return match ? match[1].trim() : "";
+  }
+
+  function recentJournalSummaries(limit = 5) {
+    return Object.entries(state.journals || {})
+      .filter(([key, journal]) => key.startsWith(`${state.activeProfileId}|`) && journal && typeof journal === "object")
+      .map(([key, journal]) => ({
+        date: key.split("|")[1] || "",
+        best: limitText(journal.best, 220),
+        learned: limitText(journal.learned, 220),
+        next: limitText(journal.next, 220),
+        memo: limitText(journal.memo, 220)
+      }))
+      .filter((item) => item.best || item.learned || item.next || item.memo)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
+  }
+
+  function recordCoachMemory(mode, message, responseText) {
+    const memory = activeAiMemory();
+    const handoff = extractHandoff(responseText);
+    const entry = {
+      id: uid("coach"),
+      at: new Date().toISOString(),
+      mode,
+      message: limitText(message, 900),
+      response: limitText(responseText, 1400),
+      handoff: limitText(handoff, 900)
+    };
+
+    memory.history = [entry, ...(Array.isArray(memory.history) ? memory.history : [])].slice(0, 8);
+    const summary = handoff || `相談: ${limitText(message, 220)}\nAI: ${limitText(responseText, 420)}`;
+    memory.handoff = limitText(`${today()} ${mode}\n${summary}\n\n${memory.handoff || ""}`, 5000);
   }
 
   function routineItems() {
@@ -472,10 +566,45 @@
   }
 
   function renderCoach() {
+    const memory = activeAiMemory();
+    const history = Array.isArray(memory.history) ? memory.history : [];
+    const historyHtml = history.length
+      ? history.map((item) => `
+        <div class="hm-memory-history-item">
+          <strong>${escapeHtml((item.at || "").slice(0, 10) || "相談")}</strong>
+          <span>${escapeHtml(item.mode || "goal")}</span>
+          <p>${escapeHtml(limitText(item.message, 180))}</p>
+        </div>
+      `).join("")
+      : '<p class="hm-muted">まだ相談履歴はありません。</p>';
     return `
       <section class="hm-panel">
         <header><h2>AI目標コーチ</h2></header>
         <div class="hm-coach">
+          <div class="hm-memory-box">
+            <div>
+              <strong>AIメモリ</strong>
+              <p class="hm-muted">相談のたびにAIへ渡す、プロフィールごとの引き継ぎ情報です。</p>
+            </div>
+            <div class="hm-memory-grid">
+              <label>
+                <span>AIに覚えておいてほしいこと</span>
+                <textarea data-ai-memory-field="notes" data-autosize placeholder="例: 家族構成、性格、大事にしたい価値観、苦手なこと">${escapeHtml(memory.notes)}</textarea>
+              </label>
+              <label>
+                <span>大事な前提・決めたこと</span>
+                <textarea data-ai-memory-field="decisions" data-autosize placeholder="例: 今年は健康を最優先。朝の時間を整えたい。">${escapeHtml(memory.decisions)}</textarea>
+              </label>
+              <label class="wide">
+                <span>AI引き継ぎメモ</span>
+                <textarea data-ai-memory-field="handoff" data-autosize placeholder="AIとの相談後に自動で追記されます。必要に応じて手で直せます。">${escapeHtml(memory.handoff)}</textarea>
+              </label>
+            </div>
+            <details class="hm-memory-history">
+              <summary>最近の相談履歴</summary>
+              ${historyHtml}
+            </details>
+          </div>
           <select data-coach-mode>
             <option value="goal">目標づくり</option>
             <option value="perspectives">4観点</option>
@@ -606,6 +735,7 @@
         const message = root.querySelector("[data-coach-message]")?.value.trim() || "";
         const mode = root.querySelector("[data-coach-mode]")?.value || "goal";
         if (!message) return;
+        let memoryChanged = false;
         coachBusy = true;
         coachText = "";
         renderAll();
@@ -620,16 +750,21 @@
                 profile: activeProfile(),
                 goal: activeGoal(),
                 daily: dailyRecord(),
-                journal: journalRecord()
+                journal: journalRecord(),
+                recentJournals: recentJournalSummaries(),
+                aiMemory: activeAiMemory()
               }
             })
           });
           coachText = data.text || "返答を取得しましたが、本文が空でした。";
+          recordCoachMemory(mode, message, coachText);
+          memoryChanged = true;
         } catch (error) {
           coachText = `AI相談エラー: ${error.message}`;
         }
         coachBusy = false;
         renderAll();
+        if (memoryChanged) queueSave();
       }
     });
 
@@ -661,6 +796,10 @@
       }
       if (target.matches("[data-journal-field]")) {
         journalRecord()[target.dataset.journalField] = target.value;
+        queueSave();
+      }
+      if (target.matches("[data-ai-memory-field]")) {
+        activeAiMemory()[target.dataset.aiMemoryField] = target.value;
         queueSave();
       }
     });

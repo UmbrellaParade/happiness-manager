@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.6
+ * Version: 0.1.7
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.6';
+    private const VERSION = '0.1.7';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -542,12 +542,12 @@ final class Happiness_Manager_Plugin {
             return new WP_Error('hm_empty_message', '相談内容を入力してください。', ['status' => 400]);
         }
 
-        $prompt = self::build_ai_prompt($mode, $message, $context);
+        $prompt = self::build_ai_prompt_v2($mode, $message, $context);
         $body = [
             'model' => self::sanitize_model(get_option(self::OPTION_MODEL, 'gpt-5-mini')),
-            'instructions' => self::ai_instructions(),
+            'instructions' => self::ai_instructions_v2(),
             'input' => $prompt,
-            'max_output_tokens' => 900,
+            'max_output_tokens' => 1200,
         ];
 
         $response = wp_remote_post('https://api.openai.com/v1/responses', [
@@ -576,6 +576,29 @@ final class Happiness_Manager_Plugin {
             'text' => self::extract_response_text(is_array($data) ? $data : []),
             'model' => $body['model'],
         ]);
+    }
+
+    private static function ai_instructions_v2(): string {
+        return 'あなたはHappiness Managerの目標達成コーチです。ユーザー本人と家族の背景、価値観、目標、日誌、AIメモリを踏まえて、継続相談の相手として返答してください。診断や治療の断定は避け、必要な場合は専門家や信頼できる人に相談する表現にしてください。返答はやさしく、具体的に、次の一手が見える形にしてください。最後に必ず「## AI引き継ぎメモ」という見出しを置き、次回以降の相談で覚えておくべき要点を3〜6個の短い箇条書きで書いてください。';
+    }
+
+    private static function build_ai_prompt_v2(string $mode, string $message, array $context): string {
+        $context_json = wp_json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($context_json)) {
+            $context_json = '{}';
+        }
+
+        return "相談モード: {$mode}\n\n"
+            . "ユーザーの相談:\n{$message}\n\n"
+            . "Happiness Managerに保存されている継続相談用コンテキスト(JSON):\n{$context_json}\n\n"
+            . "使い方:\n"
+            . "- aiMemory.notes は、AIに覚えておいてほしい長期情報です。\n"
+            . "- aiMemory.decisions は、本人が決めたこと・大事な前提です。\n"
+            . "- aiMemory.handoff は、前回までのAI引き継ぎメモです。\n"
+            . "- aiMemory.history は、最近の相談履歴です。\n"
+            . "- goal、daily、journal、recentJournals は現在の目標・状態・日誌です。\n\n"
+            . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで提案してください。"
+            . "最後に必ず「## AI引き継ぎメモ」を出し、次回に引き継ぐ要点を書いてください。";
     }
 
     private static function ai_instructions(): string {
