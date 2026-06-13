@@ -1225,7 +1225,6 @@
               return `<button type="button" data-theme-index="${item}" class="hm-theme-card ${selectedThemeIndex === item ? "active" : ""}"><small>テーマ ${item + 1}</small><b>${escapeHtml(theme.title || "未設定")}</b><span>${theme.actions.filter((action) => action.text.trim()).length}/8 行動${subCount ? ` / サブ${subCount}` : ""}</span></button>`;
             }).join("")}
           </div>
-          ${renderThemeSubs(selected, selectedThemeIndex)}
         </div>
         <div class="hm-actions">
           <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
@@ -1234,11 +1233,13 @@
             <div class="hm-action-row">
               <span>${index + 1}</span>
               <input data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" value="${escapeHtml(action.text)}" placeholder="行動">
-              <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
-              <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">${action.childThemes ? "下位64" : "下位64作成"}</button>
-              <textarea data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" data-action-subs placeholder="サブ項目・次の一手メモ">${escapeHtml(linesToText(action.subs))}</textarea>
+              <div class="hm-action-buttons">
+                <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
+                <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">${action.childThemes ? "下位64" : "下位64作成"}</button>
+              </div>
             </div>
           `).join("")}
+          ${renderThemeSubs(selected, selectedThemeIndex)}
         </div>
       </div>
     `;
