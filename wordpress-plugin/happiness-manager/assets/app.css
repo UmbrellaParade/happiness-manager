@@ -81,6 +81,16 @@
   opacity: 1 !important;
 }
 
+.hm-app-root :where(.hm-panel h1, .hm-panel h2, .hm-panel h3, .hm-panel h4, .hm-panel h5, .hm-panel h6) {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+  text-shadow: none !important;
+}
+
 .hm-app-root * {
   box-sizing: border-box;
 }
