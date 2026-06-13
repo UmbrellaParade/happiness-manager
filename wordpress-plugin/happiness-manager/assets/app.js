@@ -700,20 +700,40 @@
     `;
   }
 
+  function routineKey(text) {
+    return String(text || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("ja-JP");
+  }
+
   function routineItems() {
-    const items = [];
+    const byText = new Map();
     function collectFromThemes(goal, themes, scope, prefix = "") {
       if (!Array.isArray(themes)) return;
       themes.forEach((theme, themeIndex) => {
         theme.actions.forEach((action, actionIndex) => {
           if (!action.routine || !action.text.trim()) return;
           const id = `${scope}:${prefix}${themeIndex}:${actionIndex}`;
-          items.push({
-            id: `action:${goal.id}:${id}`,
-            text: action.text.trim(),
+          const sourceId = `action:${goal.id}:${id}`;
+          const text = action.text.trim();
+          const key = routineKey(text) || sourceId;
+          const source = {
+            id: sourceId,
             goalTitle: goal.title || "目標",
             themeTitle: `${boardScopeLabel(scope)} / ${theme.title || `テーマ${themeIndex + 1}`}`
-          });
+          };
+          if (byText.has(key)) {
+            const item = byText.get(key);
+            item.sourceIds.push(sourceId);
+            item.sources.push(source);
+          } else {
+            byText.set(key, {
+              id: sourceId,
+              text,
+              goalTitle: source.goalTitle,
+              themeTitle: source.themeTitle,
+              sourceIds: [sourceId],
+              sources: [source]
+            });
+          }
           if (Array.isArray(action.childThemes)) {
             collectFromThemes(goal, action.childThemes, scope, `${themeIndex}-${actionIndex}>`);
           }
@@ -726,7 +746,7 @@
       collectFromThemes(goal, goal.boardVariants?.recent, "recent");
       collectFromThemes(goal, goal.boardVariants?.next, "next");
     });
-    return items;
+    return Array.from(byText.values());
   }
 
   async function apiFetch(path, options = {}) {
@@ -1037,7 +1057,7 @@
           ${slider("load", "負荷", daily.load)}
           ${slider("focus", "集中", daily.focus)}
           <h3>ルーティン</h3>
-          ${items.length ? items.map((item) => `<label class="hm-check"><input type="checkbox" data-routine-check="${item.id}" ${daily.checks[item.id] ? "checked" : ""}> <span>${escapeHtml(item.text)}<small>${escapeHtml(item.goalTitle)} / ${escapeHtml(item.themeTitle)}</small></span></label>`).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
+          ${items.length ? items.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
         </section>
         <section class="hm-panel">
           <header><h2>日誌</h2></header>
@@ -1052,6 +1072,13 @@
         </section>
       </div>
     `;
+  }
+
+  function renderRoutineCheck(item, daily) {
+    const sourceIds = Array.isArray(item.sourceIds) && item.sourceIds.length ? item.sourceIds : [item.id];
+    const checked = sourceIds.some((id) => daily.checks[id]);
+    const mergedLabel = sourceIds.length > 1 ? ` / 同じルーティン${sourceIds.length}件` : "";
+    return `<label class="hm-check"><input type="checkbox" data-routine-check="${escapeHtml(item.id)}" data-routine-source-ids="${escapeHtml(JSON.stringify(sourceIds))}" ${checked ? "checked" : ""}> <span>${escapeHtml(item.text)}<small>${escapeHtml(item.goalTitle)} / ${escapeHtml(item.themeTitle)}${escapeHtml(mergedLabel)}</small></span></label>`;
   }
 
   function slider(key, label, value) {
@@ -1604,7 +1631,19 @@
         coachTarget = target.value || coachTargetOptions(activeGoal())[0][0];
       }
       if (target.matches("[data-routine-check]")) {
-        dailyRecord(true).checks[target.dataset.routineCheck] = target.checked;
+        let sourceIds = [];
+        try {
+          sourceIds = JSON.parse(target.dataset.routineSourceIds || "[]");
+        } catch (error) {
+          sourceIds = [];
+        }
+        if (!Array.isArray(sourceIds) || !sourceIds.length) {
+          sourceIds = [target.dataset.routineCheck];
+        }
+        const checks = dailyRecord(true).checks;
+        sourceIds.forEach((id) => {
+          checks[id] = target.checked;
+        });
         queueSave();
       }
       if (target.matches("[data-memory-item-kind]")) {
