@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.16
+ * Version: 0.1.17
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.16';
+    private const VERSION = '0.1.17';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -112,13 +112,7 @@ final class Happiness_Manager_Plugin {
         }
 
         $plugins_dir = wp_normalize_path(WP_PLUGIN_DIR);
-        $duplicate_dir = wp_normalize_path(WP_PLUGIN_DIR . '/happiness-manager-wordpress-plugin');
-        $duplicate_file = $duplicate_dir . '/happiness-manager/happiness-manager.php';
         $duplicate_plugin = 'happiness-manager-wordpress-plugin/happiness-manager/happiness-manager.php';
-
-        if (!file_exists($duplicate_file) || strpos($duplicate_dir, trailingslashit($plugins_dir)) !== 0) {
-            return;
-        }
 
         if (!function_exists('is_plugin_active')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -128,7 +122,29 @@ final class Happiness_Manager_Plugin {
             return;
         }
 
-        self::delete_directory($duplicate_dir);
+        $candidates = [WP_PLUGIN_DIR . '/happiness-manager-wordpress-plugin'];
+        $matched = glob(WP_PLUGIN_DIR . '/*happiness-manager-wordpress-plugin*');
+        if (is_array($matched)) {
+            $candidates = array_merge($candidates, $matched);
+        }
+
+        foreach (array_unique($candidates) as $candidate) {
+            $candidate = wp_normalize_path($candidate);
+            $name = basename($candidate);
+            if (strpos($candidate, trailingslashit($plugins_dir)) !== 0 || strpos($name, 'happiness-manager-wordpress-plugin') !== 0) {
+                continue;
+            }
+
+            if (is_dir($candidate)) {
+                self::delete_directory($candidate);
+            } elseif (is_file($candidate)) {
+                @unlink($candidate);
+            }
+        }
+
+        if (function_exists('wp_clean_plugins_cache')) {
+            wp_clean_plugins_cache(true);
+        }
     }
 
     private static function delete_directory(string $directory): void {
