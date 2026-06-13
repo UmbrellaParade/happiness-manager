@@ -55,6 +55,32 @@
   color: var(--hm-ink);
 }
 
+.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.hm-app-root :where(.hm-muted, .hm-board-context small, .hm-theme-card small, .hm-theme-card span, .hm-open-cell small, .hm-check small, .hm-theme-subs-head small, .hm-selected-theme-window-head small, .hm-memory-entry summary small, .hm-memory-entry summary em, .hm-memory-history-item small, .hm-coach-suggestions-head small, .hm-coach-suggestion-title small, .hm-coach-suggestion-row span, .hm-archive-entry summary small, .hm-archive-entry summary em, .hm-archive-grid small) {
+  color: var(--hm-muted) !important;
+  -webkit-text-fill-color: var(--hm-muted) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.hm-app-root :where(input, textarea, select) {
+  color: var(--hm-ink) !important;
+  -webkit-text-fill-color: var(--hm-ink) !important;
+  opacity: 1 !important;
+}
+
+.hm-app-root :where(input, textarea)::placeholder {
+  color: #7a8494 !important;
+  -webkit-text-fill-color: #7a8494 !important;
+  opacity: 1 !important;
+}
+
 .hm-app-root * {
   box-sizing: border-box;
 }
