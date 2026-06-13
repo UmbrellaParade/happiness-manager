@@ -1236,6 +1236,8 @@
               <div class="hm-action-buttons">
                 <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
                 <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">${action.childThemes ? "下位64" : "下位64作成"}</button>
+                <button type="button" class="hm-action-move" data-move-action="${selectedThemeIndex}:${index}" data-move-action-direction="up" ${index === 0 ? "disabled" : ""}>上へ</button>
+                <button type="button" class="hm-action-move" data-move-action="${selectedThemeIndex}:${index}" data-move-action-direction="down" ${index === 7 ? "disabled" : ""}>下へ</button>
               </div>
             </div>
           `).join("")}
@@ -1805,6 +1807,23 @@
         selectedThemeIndex = themeIndex;
         queueSave();
         renderAll();
+        return;
+      }
+
+      const moveActionButton = event.target.closest("[data-move-action]");
+      if (moveActionButton && !moveActionButton.disabled) {
+        const [themeIndex, actionIndex] = moveActionButton.dataset.moveAction.split(":").map(Number);
+        const direction = moveActionButton.dataset.moveActionDirection === "up" ? -1 : 1;
+        const nextIndex = actionIndex + direction;
+        const theme = boardThemesAtPath(activeGoal(), true)[themeIndex];
+        if (!theme || !Array.isArray(theme.actions) || nextIndex < 0 || nextIndex > 7) return;
+        [theme.actions[actionIndex], theme.actions[nextIndex]] = [theme.actions[nextIndex], theme.actions[actionIndex]];
+        selectedThemeIndex = themeIndex;
+        queueSave();
+        renderAll();
+        window.setTimeout(() => {
+          root.querySelector(`[data-action-theme-index="${themeIndex}"][data-action-index="${nextIndex}"]`)?.focus();
+        }, 0);
         return;
       }
 
