@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.21
+ * Version: 0.1.22
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.21';
+    private const VERSION = '0.1.22';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -718,7 +718,7 @@ final class Happiness_Manager_Plugin {
             'model' => self::sanitize_model(get_option(self::OPTION_MODEL, self::DEFAULT_MODEL)),
             'instructions' => self::ai_instructions_v2(),
             'input' => $prompt,
-            'max_output_tokens' => 1200,
+            'max_output_tokens' => 2200,
         ];
 
         $response = wp_remote_post('https://api.openai.com/v1/responses', [
@@ -743,8 +743,12 @@ final class Happiness_Manager_Plugin {
             return new WP_Error('hm_openai_error', $message, ['status' => $status]);
         }
 
+        $text = self::extract_response_text(is_array($data) ? $data : []);
+        $suggestions = self::extract_suggestions_from_text($text);
+
         return new WP_REST_Response([
-            'text' => self::extract_response_text(is_array($data) ? $data : []),
+            'text' => $text,
+            'suggestions' => $suggestions,
             'model' => $body['model'],
         ]);
     }
@@ -773,8 +777,112 @@ final class Happiness_Manager_Plugin {
             . "- 各64項目の subs は、8つに絞る前の候補や次の一手メモです。childThemes は、その項目をさらに64分解した下位64です。\n"
             . "- coachSelection は、ユーザーがAI相談画面で選んだ相談カテゴリと詳細項目です。その選択に強く焦点を当ててください。\n"
             . "- daily、journal、recentJournals は現在の状態・今日の日誌・最近の日誌です。\n\n"
-            . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで提案してください。"
+            . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで提案してください。\n"
+            . "ユーザーが64分解を埋めたい、テーマや行動を提案してほしい、64へ反映したい意図を示した場合は、通常の返答と「## AI引き継ぎメモ」を書いたさらに後に、次の形式のJSONブロックを必ず1つだけ追加してください。このJSONは画面で反映候補として使われます。\n"
+            . "<HM_SUGGESTIONS_JSON>{\"boardSuggestions\":[{\"scope\":\"long|recent|next|current\",\"path\":[],\"themeIndex\":1,\"title\":\"テーマ名\",\"reason\":\"短い理由\",\"actions\":[{\"index\":1,\"text\":\"行動案\",\"routine\":false}]}]}</HM_SUGGESTIONS_JSON>\n"
+            . "JSONのthemeIndexとactions.indexは1〜8です。scopeはcoachSelection.targetに合わせ、board.currentやboard.themeならcurrent、長期ならlong、直近ならrecent、次ならnextにしてください。pathはcoachSelection.boardPathがあれば同じ配列をそのまま使い、なければ[]にしてください。path内のthemeIndex/actionIndexだけはアプリ内部形式の0〜7です。すでに埋まっている項目を尊重し、必要な候補だけ出してください。JSONブロックの外ではJSONを書かないでください。\n"
             . "最後に必ず「## AI引き継ぎメモ」を出し、次回に引き継ぐ要点を書いてください。";
+    }
+
+    private static function extract_suggestions_from_text(string &$text): array {
+        if (!preg_match('/<HM_SUGGESTIONS_JSON>\s*(\{.*?\})\s*<\/HM_SUGGESTIONS_JSON>/s', $text, $matches)) {
+            return ['boardSuggestions' => []];
+        }
+
+        $text = trim(str_replace($matches[0], '', $text));
+        $payload = json_decode($matches[1], true);
+        if (!is_array($payload)) {
+            return ['boardSuggestions' => []];
+        }
+
+        return ['boardSuggestions' => self::sanitize_board_suggestions($payload['boardSuggestions'] ?? [])];
+    }
+
+    private static function sanitize_board_suggestions($items): array {
+        if (!is_array($items)) {
+            return [];
+        }
+
+        $suggestions = [];
+        foreach (array_slice($items, 0, 12) as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $scope = isset($item['scope']) ? sanitize_key((string) $item['scope']) : 'current';
+            if (!in_array($scope, ['current', 'long', 'recent', 'next'], true)) {
+                $scope = 'current';
+            }
+
+            $theme_index = self::normalize_suggestion_index($item['themeIndex'] ?? 1);
+            $actions = [];
+            foreach (array_slice(is_array($item['actions'] ?? null) ? $item['actions'] : [], 0, 8) as $action) {
+                if (!is_array($action)) {
+                    continue;
+                }
+
+                $text = trim(sanitize_textarea_field((string) ($action['text'] ?? '')));
+                if ($text === '') {
+                    continue;
+                }
+
+                $actions[] = [
+                    'index' => self::normalize_suggestion_index($action['index'] ?? 1),
+                    'text' => $text,
+                    'routine' => !empty($action['routine']),
+                ];
+            }
+
+            $title = trim(sanitize_text_field((string) ($item['title'] ?? '')));
+            if ($title === '' && empty($actions)) {
+                continue;
+            }
+
+            $suggestions[] = [
+                'id' => 'suggestion_' . wp_generate_uuid4(),
+                'scope' => $scope,
+                'path' => self::sanitize_suggestion_path($item['path'] ?? []),
+                'themeIndex' => $theme_index,
+                'title' => $title,
+                'reason' => trim(sanitize_text_field((string) ($item['reason'] ?? ''))),
+                'actions' => $actions,
+            ];
+        }
+
+        return $suggestions;
+    }
+
+    private static function normalize_suggestion_index($value): int {
+        $index = (int) $value;
+        if ($index >= 1 && $index <= 8) {
+            return $index - 1;
+        }
+
+        return max(0, min(7, $index));
+    }
+
+    private static function sanitize_suggestion_path($path): array {
+        if (!is_array($path)) {
+            return [];
+        }
+
+        $steps = [];
+        foreach (array_slice($path, 0, 4) as $step) {
+            if (!is_array($step)) {
+                continue;
+            }
+
+            $steps[] = [
+                'themeIndex' => self::normalize_zero_based_index($step['themeIndex'] ?? 0),
+                'actionIndex' => self::normalize_zero_based_index($step['actionIndex'] ?? 0),
+            ];
+        }
+
+        return $steps;
+    }
+
+    private static function normalize_zero_based_index($value): int {
+        return max(0, min(7, (int) $value));
     }
 
     private static function ai_instructions(): string {

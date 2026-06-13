@@ -36,6 +36,7 @@
   let saveLocked = false;
   let coachBusy = false;
   let coachText = "";
+  let coachSuggestions = [];
 
   function today() {
     const date = new Date();
@@ -486,6 +487,26 @@
     return themes;
   }
 
+  function baseBoardThemesForScope(goal, scope, forWrite = false) {
+    if (scope === "long") return goal.themes;
+    if (scope === "recent" || scope === "next") {
+      return forWrite ? ensureBoardVariant(goal, scope) : (Array.isArray(goal.boardVariants?.[scope]) ? goal.boardVariants[scope] : goal.themes);
+    }
+    return baseBoardThemes(goal, forWrite);
+  }
+
+  function boardThemesAtSuggestionPath(goal, suggestion, forWrite = false) {
+    let themes = baseBoardThemesForScope(goal, suggestion.scope || boardScope, forWrite);
+    (Array.isArray(suggestion.path) ? suggestion.path : []).forEach((step) => {
+      const theme = themes[step.themeIndex];
+      const action = theme?.actions?.[step.actionIndex];
+      if (!action) return;
+      if (forWrite && !Array.isArray(action.childThemes)) action.childThemes = blankThemes();
+      themes = Array.isArray(action.childThemes) ? action.childThemes : blankThemes();
+    });
+    return themes;
+  }
+
   function boardPathLabel(goal) {
     if (!boardPath.length) return boardScopeLabel();
     let themes = baseBoardThemes(goal, false);
@@ -638,6 +659,84 @@
     memory.history = [entry, ...(Array.isArray(memory.history) ? memory.history : [])].slice(0, 8);
     const summary = handoff || `相談: ${limitText(message, 220)}\nAI: ${limitText(responseText, 420)}`;
     memory.handoff = limitText(`${today()} ${mode}\n${summary}\n\n${memory.handoff || ""}`, 5000);
+  }
+
+  function normalizeSuggestionIndex(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.min(7, Math.max(0, Math.round(number)));
+  }
+
+  function normalizeSuggestionPath(path) {
+    if (!Array.isArray(path)) return boardPath.map((step) => ({ themeIndex: step.themeIndex, actionIndex: step.actionIndex }));
+    return path.slice(0, 4).map((step) => ({
+      themeIndex: normalizeSuggestionIndex(step?.themeIndex),
+      actionIndex: normalizeSuggestionIndex(step?.actionIndex)
+    }));
+  }
+
+  function normalizeBoardSuggestions(input) {
+    const rawItems = Array.isArray(input?.boardSuggestions) ? input.boardSuggestions : [];
+    return rawItems.slice(0, 12).map((item) => {
+      const scope = ["long", "recent", "next"].includes(item?.scope) ? item.scope : boardScope;
+      const themeIndex = normalizeSuggestionIndex(item?.themeIndex);
+      const actions = Array.isArray(item?.actions) ? item.actions.slice(0, 8).map((action) => ({
+        index: normalizeSuggestionIndex(action?.index),
+        text: String(action?.text || "").trim(),
+        routine: Boolean(action?.routine)
+      })).filter((action) => action.text) : [];
+      return {
+        id: String(item?.id || uid("suggestion")),
+        scope,
+        path: normalizeSuggestionPath(item?.path),
+        themeIndex,
+        title: String(item?.title || "").trim(),
+        reason: String(item?.reason || "").trim(),
+        actions
+      };
+    }).filter((item) => item.title || item.actions.length);
+  }
+
+  function suggestionScopeLabel(suggestion) {
+    const scopeLabel = boardScopeLabel(suggestion.scope || boardScope);
+    return suggestion.path?.length ? `${scopeLabel} / 下位64` : scopeLabel;
+  }
+
+  function findCoachSuggestion(id) {
+    return coachSuggestions.find((item) => item.id === id);
+  }
+
+  function applyCoachSuggestion(suggestion, part = "all", actionIndex = null) {
+    const goal = activeGoal();
+    const themes = boardThemesAtSuggestionPath(goal, suggestion, true);
+    const theme = themes[suggestion.themeIndex];
+    if (!theme) return false;
+
+    if ((part === "all" || part === "title") && suggestion.title) {
+      theme.title = suggestion.title;
+    }
+
+    if (part === "all") {
+      suggestion.actions.forEach((action) => {
+        theme.actions[action.index].text = action.text;
+        if (action.routine) theme.actions[action.index].routine = true;
+      });
+    } else if (part === "action") {
+      const action = suggestion.actions.find((item) => item.index === actionIndex);
+      if (!action) return false;
+      theme.actions[action.index].text = action.text;
+      if (action.routine) theme.actions[action.index].routine = true;
+    }
+
+    boardScope = suggestion.scope || boardScope;
+    boardPath = Array.isArray(suggestion.path) ? suggestion.path.map((step) => ({ themeIndex: step.themeIndex, actionIndex: step.actionIndex })) : [];
+    selectedThemeIndex = suggestion.themeIndex;
+    activeTab = "board";
+    state.boardMode = "edit";
+    queueSave();
+    renderAll();
+    scrollAllToAppTitle("smooth");
+    return true;
   }
 
   function memoryKindLabel(kind) {
@@ -1351,6 +1450,7 @@
       target: coachTarget,
       label: coachTargetOptions(goal).find(([value]) => value === coachTarget)?.[1] || coachTarget,
       boardScope,
+      boardPath: boardPath.map((step) => ({ themeIndex: step.themeIndex, actionIndex: step.actionIndex })),
       boardPathLabel: boardPathLabel(goal),
       selectedThemeIndex,
       selectedTheme,
@@ -1407,6 +1507,7 @@
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
           <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
+          ${renderCoachSuggestions()}
           <label class="hm-handoff-box">
             <span>AI引き継ぎメモ</span>
             <textarea data-ai-memory-field="handoff" placeholder="AIとの相談後に自動で追記されます。必要に応じて手で直せます。">${escapeHtml(memory.handoff)}</textarea>
@@ -1414,6 +1515,43 @@
           ${renderMemoryVault(memory)}
         </div>
       </section>
+    `;
+  }
+
+  function renderCoachSuggestions() {
+    if (!coachSuggestions.length) return "";
+    return `
+      <div class="hm-coach-suggestions">
+        <div class="hm-coach-suggestions-head">
+          <strong>64への反映候補</strong>
+          <small>選んだものだけ64分解へ入ります</small>
+        </div>
+        ${coachSuggestions.map((suggestion) => `
+          <div class="hm-coach-suggestion">
+            <div class="hm-coach-suggestion-title">
+              <div>
+                <strong>テーマ ${suggestion.themeIndex + 1}${suggestion.title ? `: ${escapeHtml(suggestion.title)}` : ""}</strong>
+                <small>${escapeHtml(suggestionScopeLabel(suggestion))}${suggestion.reason ? ` / ${escapeHtml(suggestion.reason)}` : ""}</small>
+              </div>
+              <button type="button" data-apply-coach-suggestion="${escapeHtml(suggestion.id)}">このテーマ全体を反映</button>
+            </div>
+            ${suggestion.title ? `
+              <div class="hm-coach-suggestion-row">
+                <span>テーマ名</span>
+                <p>${escapeHtml(suggestion.title)}</p>
+                <button type="button" data-apply-coach-suggestion-title="${escapeHtml(suggestion.id)}">反映</button>
+              </div>
+            ` : ""}
+            ${suggestion.actions.map((action) => `
+              <div class="hm-coach-suggestion-row">
+                <span>${suggestion.themeIndex + 1}-${action.index + 1}</span>
+                <p>${escapeHtml(action.text)}${action.routine ? " / 毎日候補" : ""}</p>
+                <button type="button" data-apply-coach-suggestion-action="${escapeHtml(suggestion.id)}:${action.index}">反映</button>
+              </div>
+            `).join("")}
+          </div>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -1676,6 +1814,28 @@
         return;
       }
 
+      const applySuggestion = event.target.closest("[data-apply-coach-suggestion]");
+      if (applySuggestion) {
+        const suggestion = findCoachSuggestion(applySuggestion.dataset.applyCoachSuggestion);
+        if (suggestion) applyCoachSuggestion(suggestion, "all");
+        return;
+      }
+
+      const applySuggestionTitle = event.target.closest("[data-apply-coach-suggestion-title]");
+      if (applySuggestionTitle) {
+        const suggestion = findCoachSuggestion(applySuggestionTitle.dataset.applyCoachSuggestionTitle);
+        if (suggestion) applyCoachSuggestion(suggestion, "title");
+        return;
+      }
+
+      const applySuggestionAction = event.target.closest("[data-apply-coach-suggestion-action]");
+      if (applySuggestionAction) {
+        const [id, index] = applySuggestionAction.dataset.applyCoachSuggestionAction.split(":");
+        const suggestion = findCoachSuggestion(id);
+        if (suggestion) applyCoachSuggestion(suggestion, "action", Number(index));
+        return;
+      }
+
       if (event.target.closest("[data-ask-coach]")) {
         const message = root.querySelector("[data-coach-message]")?.value.trim() || "";
         const mode = coachTarget || coachArea || "goal";
@@ -1683,6 +1843,7 @@
         let memoryChanged = false;
         coachBusy = true;
         coachText = "";
+        coachSuggestions = [];
         renderAll();
         try {
           const data = await apiFetch("/coach", {
@@ -1702,10 +1863,12 @@
             })
           });
           coachText = data.text || "返答を取得しましたが、本文が空でした。";
+          coachSuggestions = normalizeBoardSuggestions(data.suggestions);
           recordCoachMemory(mode, message, coachText);
           memoryChanged = true;
         } catch (error) {
           coachText = `AI相談エラー: ${error.message}`;
+          coachSuggestions = [];
         }
         coachBusy = false;
         renderAll();

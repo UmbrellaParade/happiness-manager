@@ -833,6 +833,59 @@
   padding: 12px;
 }
 
+.hm-coach-suggestions {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #b7c7c3;
+  border-radius: var(--hm-radius);
+  background: #fbfefd;
+  padding: 12px;
+}
+
+.hm-coach-suggestions-head,
+.hm-coach-suggestion-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.hm-coach-suggestions-head small,
+.hm-coach-suggestion-title small {
+  display: block;
+  color: var(--hm-muted);
+  font-size: 12px;
+}
+
+.hm-coach-suggestion {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 10px;
+}
+
+.hm-coach-suggestion-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #eef2f7;
+  padding-top: 8px;
+}
+
+.hm-coach-suggestion-row span {
+  color: var(--hm-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hm-coach-suggestion-row p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .hm-archive-list {
   display: grid;
   gap: 10px;
@@ -1087,6 +1140,21 @@
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-panel {
     padding: 12px;
+  }
+
+  .hm-coach-suggestions-head,
+  .hm-coach-suggestion-title {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hm-coach-suggestion-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .hm-coach-suggestion-row button {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-form-grid {
