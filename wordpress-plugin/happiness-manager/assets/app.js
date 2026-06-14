@@ -1294,7 +1294,7 @@
               <input data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" value="${escapeHtml(action.text)}" placeholder="行動">
               <div class="hm-action-buttons">
                 <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
-                <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">${action.childThemes ? "下位64" : "下位64作成"}</button>
+                <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">下位64</button>
                 <button type="button" class="hm-action-move" data-move-action="${selectedThemeIndex}:${index}" data-move-action-direction="up" ${index === 0 ? "disabled" : ""}>上へ</button>
                 <button type="button" class="hm-action-move" data-move-action="${selectedThemeIndex}:${index}" data-move-action-direction="down" ${index === 7 ? "disabled" : ""}>下へ</button>
               </div>
@@ -1446,16 +1446,7 @@
 
   function renderCoachLegacy() {
     const memory = activeAiMemory();
-    const history = Array.isArray(memory.history) ? memory.history : [];
-    const historyHtml = history.length
-      ? history.map((item) => `
-        <div class="hm-memory-history-item">
-          <strong>${escapeHtml((item.at || "").slice(0, 10) || "相談")}</strong>
-          <span>${escapeHtml(item.mode || "goal")}</span>
-          <p>${escapeHtml(limitText(item.message, 180))}</p>
-        </div>
-      `).join("")
-      : '<p class="hm-muted">まだ相談履歴はありません。</p>';
+    const historyHtml = renderCoachHistory(memory);
     return `
       <section class="hm-panel">
         <header><h2>AI目標コーチ</h2></header>
@@ -1557,20 +1548,43 @@
     };
   }
 
+  function renderCoachHistory(memory) {
+    const history = Array.isArray(memory.history) ? memory.history : [];
+    if (!history.length) return '<p class="hm-muted">まだ相談履歴はありません。</p>';
+    return history.map((item) => {
+      const date = (item.at || "").slice(0, 10) || "相談";
+      const mode = item.mode || "goal";
+      const message = String(item.message || "").trim();
+      const response = String(item.response || "").trim();
+      const handoff = String(item.handoff || "").trim();
+      return `
+        <details class="hm-memory-history-item">
+          <summary>
+            <strong>${escapeHtml(date)}</strong>
+            <span>${escapeHtml(mode)}</span>
+            <p>${escapeHtml(limitText(message, 180))}</p>
+          </summary>
+          <div class="hm-memory-history-detail">
+            <div>
+              <b>相談内容</b>
+              <p>${message ? escapeHtml(message).replaceAll("\n", "<br>") : "保存された相談内容はありません。"}</p>
+            </div>
+            <div>
+              <b>AI回答</b>
+              <p>${response ? escapeHtml(response).replaceAll("\n", "<br>") : "保存されたAI回答はありません。"}</p>
+            </div>
+            ${handoff ? `<div><b>AI引き継ぎメモ</b><p>${escapeHtml(handoff).replaceAll("\n", "<br>")}</p></div>` : ""}
+          </div>
+        </details>
+      `;
+    }).join("");
+  }
+
   function renderCoach() {
     const memory = activeAiMemory();
     const goal = activeGoal();
     const targetOptions = normalizeCoachTarget(goal);
-    const history = Array.isArray(memory.history) ? memory.history : [];
-    const historyHtml = history.length
-      ? history.map((item) => `
-        <div class="hm-memory-history-item">
-          <strong>${escapeHtml((item.at || "").slice(0, 10) || "相談")}</strong>
-          <span>${escapeHtml(item.mode || "goal")}</span>
-          <p>${escapeHtml(limitText(item.message, 180))}</p>
-        </div>
-      `).join("")
-      : '<p class="hm-muted">まだ相談履歴はありません。</p>';
+    const historyHtml = renderCoachHistory(memory);
 
     return `
       <section class="hm-panel">
