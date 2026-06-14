@@ -1666,6 +1666,60 @@
     if (root) scheduleScrollToAppTitle(root, "smooth");
   }
 
+  async function regenerateHistorySuggestions(id, root) {
+    const memory = activeAiMemory();
+    const entry = (Array.isArray(memory.history) ? memory.history : []).find((h) => h.id === id);
+    if (!entry || coachBusy) return;
+
+    coachBusy = true;
+    coachApplyStatus = "履歴の相談から反映候補を作成中...";
+    renderAll();
+
+    try {
+      const goal = activeGoal();
+      const data = await apiFetch("/coach", {
+        method: "POST",
+        body: JSON.stringify({
+          mode: String(entry.mode || "").startsWith("board") ? entry.mode : "board.current",
+          message: [
+            "次の過去の相談とAI回答をふまえて、いまの64分解に反映できる候補を出してください。",
+            "",
+            "【過去の相談】",
+            String(entry.message || "（記録なし）"),
+            "",
+            "【その時のAI回答】",
+            String(entry.response || "（記録なし）"),
+            "",
+            "反映候補のJSONブロックを必ず出してください。"
+          ].join("\n"),
+          context: {
+            activeDate,
+            goal,
+            daily: dailyRecord(false),
+            journal: journalRecord(false),
+            recentJournals: recentJournalSummaries(),
+            coachSelection: coachSelectionContext(goal),
+            aiMemory: activeAiMemory()
+          }
+        })
+      });
+      const suggestions = normalizeBoardSuggestions(data.suggestions);
+      entry.suggestions = suggestions;
+      coachSuggestions = suggestions;
+      coachApplied = {};
+      coachApplyStatus = suggestions.length
+        ? "履歴の相談から反映候補を作りました。下の候補から選んで反映できます。"
+        : "今回は反映候補が作れませんでした。相談カテゴリを「64分解」にして相談し直すと出やすくなります。";
+      queueSave();
+    } catch (error) {
+      coachApplyStatus = `反映候補の作成エラー: ${error.message}`;
+    }
+
+    coachBusy = false;
+    renderAll();
+    if (root) scheduleScrollToAppTitle(root, "smooth");
+  }
+
   function renderCoachHistory(memory) {
     const history = Array.isArray(memory.history) ? memory.history : [];
     if (!history.length) return '<p class="hm-muted">まだ相談履歴はありません。</p>';
@@ -1693,7 +1747,11 @@
               <p>${response ? escapeHtml(response).replaceAll("\n", "<br>") : "保存されたAI回答はありません。"}</p>
             </div>
             ${handoff ? `<div><b>AI引き継ぎメモ</b><p>${escapeHtml(handoff).replaceAll("\n", "<br>")}</p></div>` : ""}
-            ${suggestions.length ? `<div class="hm-history-apply"><button type="button" class="hm-ai-instruction" data-load-history-suggestions="${escapeHtml(item.id)}">この回答を64の反映候補にする（${suggestions.length}件）</button></div>` : ""}
+            <div class="hm-history-apply">
+              ${suggestions.length
+                ? `<button type="button" class="hm-ai-instruction" data-load-history-suggestions="${escapeHtml(item.id)}">この回答を64の反映候補にする（${suggestions.length}件）</button>`
+                : `<button type="button" class="hm-ai-instruction" data-regen-history-suggestions="${escapeHtml(item.id)}"${coachBusy ? " disabled" : ""}>${coachBusy ? "作成中..." : "この相談から64の反映候補を作る"}</button>`}
+            </div>
           </div>
         </details>
       `;
@@ -1894,6 +1952,12 @@
       const makeInstruction = event.target.closest("[data-make-instruction]");
       if (makeInstruction) {
         startCoachWith(makeInstruction.dataset.makeInstruction, root);
+        return;
+      }
+
+      const regenHistory = event.target.closest("[data-regen-history-suggestions]");
+      if (regenHistory) {
+        await regenerateHistorySuggestions(regenHistory.dataset.regenHistorySuggestions, root);
         return;
       }
 
