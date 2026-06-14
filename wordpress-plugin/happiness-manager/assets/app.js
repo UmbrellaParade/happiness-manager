@@ -47,6 +47,18 @@
     ].join("-");
   }
 
+  function shiftDate(dateText, days) {
+    const parts = String(dateText || "").split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return today();
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    date.setDate(date.getDate() + days);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+
   function uid(prefix) {
     return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   }
@@ -561,8 +573,8 @@
     goal.archives = goal.archives.slice(0, 80);
   }
 
-  function dayKey() {
-    return `${state.activeProfileId}|${activeDate}`;
+  function dayKey(date = activeDate) {
+    return `${state.activeProfileId}|${date}`;
   }
 
   function blankDailyRecord() {
@@ -610,6 +622,10 @@
       state.journals[key] = record;
     }
     return record;
+  }
+
+  function journalRecordForDate(date) {
+    return normalizeJournalRecord(state.journals[dayKey(date)]);
   }
 
   function activeAiMemory() {
@@ -941,6 +957,21 @@
       collectFromThemes(goal, goal.boardVariants?.next, "next");
     });
     return Array.from(byText.values());
+  }
+
+  function todayActionItems() {
+    const previousDate = shiftDate(activeDate, -1);
+    const previousJournal = journalRecordForDate(previousDate);
+    return normalizeLines(previousJournal.next).map((text, index) => {
+      const key = routineKey(text) || `item-${index + 1}`;
+      return {
+        id: `today-action:${state.activeProfileId}:${activeDate}:${previousDate}:${index}:${key}`,
+        text,
+        goalTitle: "今日やること",
+        themeTitle: `${previousDate}の明日の一手`,
+        sourceIds: [`today-action:${state.activeProfileId}:${activeDate}:${previousDate}:${index}:${key}`]
+      };
+    });
   }
 
   async function apiFetch(path, options = {}) {
@@ -1341,6 +1372,7 @@
     const daily = dailyRecord();
     const journal = journalRecord();
     const items = routineItems();
+    const todayItems = todayActionItems();
     return `
       <div class="hm-grid hm-grid-2">
         <section class="hm-panel">
@@ -1351,6 +1383,8 @@
           ${slider("focus", "集中", daily.focus)}
           <h3>ルーティン</h3>
           ${items.length ? items.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
+          <h3>今日やること</h3>
+          ${todayItems.length ? todayItems.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">前日の「明日の一手」に書いたことがここに表示されます。</p>'}
         </section>
         <section class="hm-panel">
           <header><h2>日誌</h2></header>

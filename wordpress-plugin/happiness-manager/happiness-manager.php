@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.30
+ * Version: 0.1.31
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.30';
+    private const VERSION = '0.1.31';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -727,12 +727,13 @@ final class Happiness_Manager_Plugin {
             return new WP_Error('hm_empty_message', '相談内容を入力してください。', ['status' => 400]);
         }
 
+        $context = self::compact_ai_context($context);
         $prompt = self::build_ai_prompt_v2($mode, $message, $context);
         $body = [
             'model' => self::sanitize_model(get_option(self::OPTION_MODEL, self::DEFAULT_MODEL)),
             'instructions' => self::ai_instructions_v2(),
             'input' => $prompt,
-            'max_output_tokens' => 2200,
+            'max_output_tokens' => 2600,
         ];
 
         $response = wp_remote_post('https://api.openai.com/v1/responses', [
@@ -741,11 +742,15 @@ final class Happiness_Manager_Plugin {
                 'Content-Type' => 'application/json',
             ],
             'body' => wp_json_encode($body),
-            'timeout' => 45,
+            'timeout' => 90,
         ]);
 
         if (is_wp_error($response)) {
-            return new WP_Error('hm_openai_request_failed', $response->get_error_message(), ['status' => 502]);
+            $error_message = $response->get_error_message();
+            if (stripos($error_message, 'cURL error 28') !== false || stripos($error_message, 'timed out') !== false) {
+                $error_message = 'AIの応答が時間切れになりました。長文情報は自動で短くして送るようにしました。もう一度試してみてください。';
+            }
+            return new WP_Error('hm_openai_request_failed', $error_message, ['status' => 502]);
         }
 
         $status = (int) wp_remote_retrieve_response_code($response);
@@ -785,17 +790,123 @@ final class Happiness_Manager_Plugin {
             . "- aiMemory.decisions は、本人が決めたこと・大事な前提です。\n"
             . "- aiMemory.handoff は、前回までのAI引き継ぎメモです。\n"
             . "- aiMemory.items は、項目ごとに保存した長期情報です。imageUrl がある場合、それはWordPressメディアなどの保存先URLです。このAPI呼び出しでは画像本体を入力画像として送っていないため、画像内容を見た前提で断定しないでください。\n"
+            . "- 長文の保存情報は、応答速度を保つために抜粋で渡されることがあります。必要ならユーザーに確認質問をしてください。\n"
             . "- aiMemory.history は、最近の相談履歴です。\n"
             . "- goal.plan は、長期目標、直近の目標、次の目標と日付、達成メモです。\n"
             . "- goal.themes は長期目標の64分解です。goal.boardVariants.recent と goal.boardVariants.next は直近/次の目標用の64分解です。\n"
             . "- 各64項目の subs は、8つに絞る前の候補や次の一手メモです。childThemes は、その項目をさらに64分解した下位64です。\n"
             . "- coachSelection は、ユーザーがAI相談画面で選んだ相談カテゴリと詳細項目です。その選択に強く焦点を当ててください。\n"
             . "- daily、journal、recentJournals は現在の状態・今日の日誌・最近の日誌です。\n\n"
-            . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで提案してください。\n"
+            . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで短く提案してください。\n"
             . "ユーザーが64分解を埋めたい、テーマや行動を提案してほしい、64へ反映したい意図を示した場合は、通常の返答と「## AI引き継ぎメモ」を書いたさらに後に、次の形式のJSONブロックを必ず1つだけ追加してください。このJSONは画面で反映候補として使われます。\n"
             . "<HM_SUGGESTIONS_JSON>{\"boardSuggestions\":[{\"scope\":\"long|recent|next|current\",\"path\":[],\"themeIndex\":1,\"title\":\"テーマ名\",\"reason\":\"短い理由\",\"actions\":[{\"index\":1,\"text\":\"行動案\",\"routine\":false}]}]}</HM_SUGGESTIONS_JSON>\n"
-            . "JSONのthemeIndexとactions.indexは1〜8です。scopeはcoachSelection.targetに合わせ、board.currentやboard.themeならcurrent、長期ならlong、直近ならrecent、次ならnextにしてください。pathはcoachSelection.boardPathがあれば同じ配列をそのまま使い、なければ[]にしてください。path内のthemeIndex/actionIndexだけはアプリ内部形式の0〜7です。すでに埋まっている項目を尊重し、必要な候補だけ出してください。JSONブロックの外ではJSONを書かないでください。\n"
+            . "JSONのthemeIndexとactions.indexは1〜8です。scopeはcoachSelection.targetに合わせ、board.currentやboard.themeならcurrent、長期ならlong、直近ならrecent、次ならnextにしてください。pathはcoachSelection.boardPathがあれば同じ配列をそのまま使い、なければ[]にしてください。path内のthemeIndex/actionIndexだけはアプリ内部形式の0〜7です。すでに埋まっている項目を尊重し、最大8テーマ・各8行動以内で必要な候補だけ出してください。JSONブロックの外ではJSONを書かないでください。\n"
             . "最後に必ず「## AI引き継ぎメモ」を出し、次回に引き継ぐ要点を書いてください。";
+    }
+
+    private static function compact_ai_context(array $context): array {
+        return self::compact_context_value($context, '', 0);
+    }
+
+    private static function compact_context_value($value, string $key = '', int $depth = 0) {
+        if (is_string($value)) {
+            return self::limit_context_text($value, self::context_text_limit($key));
+        }
+
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        if ($depth >= 9) {
+            return '[深い階層のため省略]';
+        }
+
+        $is_list = self::is_list_array($value);
+        $limit = self::context_list_limit($key, $is_list);
+        $next = [];
+        $count = 0;
+
+        foreach ($value as $item_key => $item_value) {
+            if ($count >= $limit) {
+                if ($is_list) {
+                    $next[] = '[件数が多いため省略]';
+                } else {
+                    $next['_omitted'] = '件数が多いため省略';
+                }
+                break;
+            }
+            $child_key = is_string($item_key) ? $item_key : $key;
+            $next[$item_key] = self::compact_context_value($item_value, $child_key, $depth + 1);
+            $count++;
+        }
+
+        return $next;
+    }
+
+    private static function is_list_array(array $value): bool {
+        $index = 0;
+        foreach (array_keys($value) as $key) {
+            if ($key !== $index) {
+                return false;
+            }
+            $index++;
+        }
+        return true;
+    }
+
+    private static function context_list_limit(string $key, bool $is_list): int {
+        if (!$is_list) {
+            return 80;
+        }
+
+        if (in_array($key, ['items', 'history', 'recentJournals'], true)) {
+            return 8;
+        }
+
+        if (in_array($key, ['themes', 'actions', 'boardSuggestions'], true)) {
+            return 8;
+        }
+
+        return 24;
+    }
+
+    private static function context_text_limit(string $key): int {
+        if (in_array($key, ['body', 'notes', 'decisions', 'handoff'], true)) {
+            return 1400;
+        }
+
+        if (in_array($key, ['message', 'response', 'memo', 'best', 'learned', 'next', 'gratitude', 'selfTalk'], true)) {
+            return 700;
+        }
+
+        if (in_array($key, ['title', 'text', 'reason'], true)) {
+            return 320;
+        }
+
+        if (in_array($key, ['imageUrl', 'url'], true)) {
+            return 260;
+        }
+
+        return 900;
+    }
+
+    private static function limit_context_text(string $text, int $max): string {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            if (mb_strlen($text, 'UTF-8') <= $max) {
+                return $text;
+            }
+            return mb_substr($text, 0, max(0, $max - 18), 'UTF-8') . '…（長文のため省略）';
+        }
+
+        if (strlen($text) <= $max) {
+            return $text;
+        }
+        return substr($text, 0, max(0, $max - 24)) . '... (omitted)';
     }
 
     private static function extract_suggestions_from_text(string &$text): array {
