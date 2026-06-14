@@ -37,6 +37,8 @@
   let coachBusy = false;
   let coachText = "";
   let coachSuggestions = [];
+  let coachApplied = {};
+  let coachApplyStatus = "";
 
   function today() {
     const date = new Date();
@@ -726,6 +728,32 @@
     return coachSuggestions.find((item) => item.id === id);
   }
 
+  function coachSuggestionKey(suggestion, part = "all", actionIndex = null) {
+    return `${suggestion?.id || "suggestion"}:${part}:${actionIndex === null ? "all" : actionIndex}`;
+  }
+
+  function isCoachSuggestionApplied(suggestion, part = "all", actionIndex = null) {
+    return Boolean(coachApplied[coachSuggestionKey(suggestion, part, actionIndex)]);
+  }
+
+  function markCoachSuggestionApplied(suggestion, part = "all", actionIndex = null) {
+    coachApplied[coachSuggestionKey(suggestion, part, actionIndex)] = true;
+    if (part === "all") {
+      if (suggestion.title) coachApplied[coachSuggestionKey(suggestion, "title")] = true;
+      suggestion.actions.forEach((action) => {
+        coachApplied[coachSuggestionKey(suggestion, "action", action.index)] = true;
+      });
+    }
+  }
+
+  function coachSuggestionAppliedLabel(suggestion, part = "all", actionIndex = null) {
+    return isCoachSuggestionApplied(suggestion, part, actionIndex) ? "反映済み" : "反映";
+  }
+
+  function coachSuggestionDisabledAttr(suggestion, part = "all", actionIndex = null) {
+    return isCoachSuggestionApplied(suggestion, part, actionIndex) ? " disabled" : "";
+  }
+
   function applyCoachSuggestion(suggestion, part = "all", actionIndex = null) {
     const goal = activeGoal();
     const themes = boardThemesAtSuggestionPath(goal, suggestion, true);
@@ -751,11 +779,11 @@
     boardScope = suggestion.scope || boardScope;
     boardPath = Array.isArray(suggestion.path) ? suggestion.path.map((step) => ({ themeIndex: step.themeIndex, actionIndex: step.actionIndex })) : [];
     selectedThemeIndex = suggestion.themeIndex;
-    activeTab = "board";
     state.boardMode = "edit";
+    markCoachSuggestionApplied(suggestion, part, actionIndex);
+    coachApplyStatus = `${suggestionScopeLabel(suggestion)} / テーマ${suggestion.themeIndex + 1}へ反映しました。`;
     queueSave();
     renderAll();
-    scrollAllToAppTitle("smooth");
     return true;
   }
 
@@ -1591,34 +1619,40 @@
     return `
       <div class="hm-coach-suggestions">
         <div class="hm-coach-suggestions-head">
-          <strong>64への反映候補</strong>
-          <small>選んだものだけ64分解へ入ります</small>
+          <div>
+            <strong>64への反映候補</strong>
+            <small>${escapeHtml(coachApplyStatus || "選んだものだけ64分解へ入ります")}</small>
+          </div>
+          <button type="button" data-open-board-from-coach>64で確認</button>
         </div>
-        ${coachSuggestions.map((suggestion) => `
+        ${coachSuggestions.map((suggestion) => {
+          const allApplied = isCoachSuggestionApplied(suggestion, "all");
+          return `
           <div class="hm-coach-suggestion">
             <div class="hm-coach-suggestion-title">
               <div>
                 <strong>テーマ ${suggestion.themeIndex + 1}${suggestion.title ? `: ${escapeHtml(suggestion.title)}` : ""}</strong>
                 <small>${escapeHtml(suggestionScopeLabel(suggestion))}${suggestion.reason ? ` / ${escapeHtml(suggestion.reason)}` : ""}</small>
               </div>
-              <button type="button" data-apply-coach-suggestion="${escapeHtml(suggestion.id)}">このテーマ全体を反映</button>
+              <button type="button" data-apply-coach-suggestion="${escapeHtml(suggestion.id)}"${allApplied ? " disabled" : ""}>${allApplied ? "反映済み" : "このテーマ全体を反映"}</button>
             </div>
             ${suggestion.title ? `
               <div class="hm-coach-suggestion-row">
                 <span>テーマ名</span>
                 <p>${escapeHtml(suggestion.title)}</p>
-                <button type="button" data-apply-coach-suggestion-title="${escapeHtml(suggestion.id)}">反映</button>
+                <button type="button" data-apply-coach-suggestion-title="${escapeHtml(suggestion.id)}"${coachSuggestionDisabledAttr(suggestion, "title")}>${coachSuggestionAppliedLabel(suggestion, "title")}</button>
               </div>
             ` : ""}
             ${suggestion.actions.map((action) => `
               <div class="hm-coach-suggestion-row">
                 <span>${suggestion.themeIndex + 1}-${action.index + 1}</span>
                 <p>${escapeHtml(action.text)}${action.routine ? " / 毎日候補" : ""}</p>
-                <button type="button" data-apply-coach-suggestion-action="${escapeHtml(suggestion.id)}:${action.index}">反映</button>
+                <button type="button" data-apply-coach-suggestion-action="${escapeHtml(suggestion.id)}:${action.index}"${coachSuggestionDisabledAttr(suggestion, "action", action.index)}>${coachSuggestionAppliedLabel(suggestion, "action", action.index)}</button>
               </div>
             `).join("")}
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     `;
   }
@@ -1928,6 +1962,14 @@
         return;
       }
 
+      if (event.target.closest("[data-open-board-from-coach]")) {
+        activeTab = "board";
+        state.boardMode = "edit";
+        renderAll();
+        scrollAllToAppTitle("smooth");
+        return;
+      }
+
       const applySuggestion = event.target.closest("[data-apply-coach-suggestion]");
       if (applySuggestion) {
         const suggestion = findCoachSuggestion(applySuggestion.dataset.applyCoachSuggestion);
@@ -1958,6 +2000,8 @@
         coachBusy = true;
         coachText = "";
         coachSuggestions = [];
+        coachApplied = {};
+        coachApplyStatus = "";
         renderAll();
         try {
           const data = await apiFetch("/coach", {

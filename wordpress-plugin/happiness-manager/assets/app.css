@@ -991,11 +991,23 @@
   align-items: center;
 }
 
+.hm-coach-suggestions-head > div,
+.hm-coach-suggestion-title > div {
+  min-width: 0;
+}
+
 .hm-coach-suggestions-head small,
 .hm-coach-suggestion-title small {
   display: block;
   color: var(--hm-muted);
   font-size: 12px;
+}
+
+.hm-coach-suggestions button:disabled {
+  border-color: #98c7b9;
+  background: #e8f4f0;
+  color: #1e5f4f;
+  cursor: default;
 }
 
 .hm-coach-suggestion {

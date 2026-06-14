@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.31
+ * Version: 0.1.32
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.31';
+    private const VERSION = '0.1.32';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -782,6 +782,14 @@ final class Happiness_Manager_Plugin {
             $context_json = '{}';
         }
 
+        $coach_selection = isset($context['coachSelection']) && is_array($context['coachSelection']) ? $context['coachSelection'] : [];
+        $coach_area = isset($coach_selection['area']) ? sanitize_key((string) $coach_selection['area']) : '';
+        $coach_target = isset($coach_selection['target']) ? sanitize_key((string) $coach_selection['target']) : '';
+        $is_board_request = strpos($mode, 'board') === 0 || $coach_area === 'board' || strpos($coach_target, 'board') === 0;
+        $suggestion_rule = $is_board_request
+            ? "今回の相談カテゴリは64分解です。通常の返答と「## AI引き継ぎメモ」を書いたさらに後に、次の形式のJSONブロックを必ず1つだけ追加してください。このJSONは画面で反映候補として使われます。\n"
+            : "ユーザーが64分解を埋めたい、テーマや行動を提案してほしい、64へ反映したい意図を示した場合は、通常の返答と「## AI引き継ぎメモ」を書いたさらに後に、次の形式のJSONブロックを必ず1つだけ追加してください。このJSONは画面で反映候補として使われます。\n";
+
         return "相談モード: {$mode}\n\n"
             . "ユーザーの相談:\n{$message}\n\n"
             . "Happiness Managerに保存されている継続相談用コンテキスト(JSON):\n{$context_json}\n\n"
@@ -798,9 +806,9 @@ final class Happiness_Manager_Plugin {
             . "- coachSelection は、ユーザーがAI相談画面で選んだ相談カテゴリと詳細項目です。その選択に強く焦点を当ててください。\n"
             . "- daily、journal、recentJournals は現在の状態・今日の日誌・最近の日誌です。\n\n"
             . "返答では、必要に応じて「深掘り質問」「4観点の候補」「64分解のテーマ候補」「明日の一手」を見出し付きで短く提案してください。\n"
-            . "ユーザーが64分解を埋めたい、テーマや行動を提案してほしい、64へ反映したい意図を示した場合は、通常の返答と「## AI引き継ぎメモ」を書いたさらに後に、次の形式のJSONブロックを必ず1つだけ追加してください。このJSONは画面で反映候補として使われます。\n"
+            . $suggestion_rule
             . "<HM_SUGGESTIONS_JSON>{\"boardSuggestions\":[{\"scope\":\"long|recent|next|current\",\"path\":[],\"themeIndex\":1,\"title\":\"テーマ名\",\"reason\":\"短い理由\",\"actions\":[{\"index\":1,\"text\":\"行動案\",\"routine\":false}]}]}</HM_SUGGESTIONS_JSON>\n"
-            . "JSONのthemeIndexとactions.indexは1〜8です。scopeはcoachSelection.targetに合わせ、board.currentやboard.themeならcurrent、長期ならlong、直近ならrecent、次ならnextにしてください。pathはcoachSelection.boardPathがあれば同じ配列をそのまま使い、なければ[]にしてください。path内のthemeIndex/actionIndexだけはアプリ内部形式の0〜7です。すでに埋まっている項目を尊重し、最大8テーマ・各8行動以内で必要な候補だけ出してください。JSONブロックの外ではJSONを書かないでください。\n"
+            . "JSONのthemeIndexとactions.indexは1〜8です。scopeはcoachSelection.targetに合わせ、board.currentやboard.themeならcurrent、長期ならlong、直近ならrecent、次ならnextにしてください。pathはcoachSelection.boardPathがあれば同じ配列をそのまま使い、なければ[]にしてください。path内のthemeIndex/actionIndexだけはアプリ内部形式の0〜7です。すでに埋まっている項目を尊重し、最大8テーマ・各8行動以内で必要な候補だけ出してください。空欄が多い場合は埋める候補を優先し、既存項目がある場合は置き換え候補として本当に良いものだけ出してください。JSONブロックの外ではJSONを書かないでください。\n"
             . "最後に必ず「## AI引き継ぎメモ」を出し、次回に引き継ぐ要点を書いてください。";
     }
 
