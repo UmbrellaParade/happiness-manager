@@ -260,6 +260,22 @@
   color: #1e5f4f;
 }
 
+.hm-app-root button.hm-ai-instruction {
+  border-color: #98c7b9;
+  background: #e8f4f0;
+  color: #1e5f4f;
+  font-weight: 800;
+}
+
+.hm-app-root button.hm-ai-instruction:hover {
+  border-color: #6fae9b;
+  background: #ddefe8;
+}
+
+.hm-history-apply {
+  margin-top: 8px;
+}
+
 .hm-grid {
   display: grid;
   gap: 14px;

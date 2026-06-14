@@ -36,6 +36,7 @@
   let saveLocked = false;
   let coachBusy = false;
   let coachText = "";
+  let coachDraft = "";
   let coachSuggestions = [];
   let coachApplied = {};
   let coachApplyStatus = "";
@@ -319,7 +320,8 @@
         mode: String(item && item.mode ? item.mode : ""),
         message: String(item && item.message ? item.message : ""),
         response: String(item && item.response ? item.response : ""),
-        handoff: String(item && item.handoff ? item.handoff : "")
+        handoff: String(item && item.handoff ? item.handoff : ""),
+        suggestions: normalizeBoardSuggestions({ boardSuggestions: Array.isArray(item && item.suggestions) ? item.suggestions : [] })
       }))
     };
   }
@@ -666,7 +668,7 @@
       .slice(0, limit);
   }
 
-  function recordCoachMemory(mode, message, responseText) {
+  function recordCoachMemory(mode, message, responseText, suggestions) {
     const memory = activeAiMemory();
     const handoff = extractHandoff(responseText);
     const entry = {
@@ -675,7 +677,8 @@
       mode,
       message: limitText(message, 900),
       response: limitText(responseText, 1400),
-      handoff: limitText(handoff, 900)
+      handoff: limitText(handoff, 900),
+      suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 12) : []
     };
 
     memory.history = [entry, ...(Array.isArray(memory.history) ? memory.history : [])].slice(0, 8);
@@ -1178,6 +1181,9 @@
             ${planField("nextTitle", "次の目標", goal.plan.nextTitle, "textarea", "wide")}
             ${planField("nextDate", "次の目標の日付", goal.plan.nextDate, "date")}
           </div>
+          <div class="hm-buttons">
+            <button type="button" class="hm-ai-instruction" data-make-instruction="plan">AI指示書を作成（逆算を深める）</button>
+          </div>
         </section>
         <section class="hm-panel">
           <header><h2>中心設定</h2></header>
@@ -1198,6 +1204,9 @@
       <section class="hm-panel">
         <header><h2>目的・目標の4観点</h2></header>
         ${renderPerspectives(goal)}
+        <div class="hm-buttons">
+          <button type="button" class="hm-ai-instruction" data-make-instruction="perspectives">AI指示書を作成（4観点を深める）</button>
+        </div>
       </section>
     `;
   }
@@ -1257,6 +1266,7 @@
           </div>
           <div class="hm-buttons">
             ${boardPath.length ? '<button type="button" data-board-path-back>上の64へ戻る</button>' : ""}
+            <button type="button" class="hm-ai-instruction" data-make-instruction="board">AI指示書を作成（この64を深める）</button>
             <button type="button" data-archive-board>この64を履歴へ保存</button>
           </div>
         </div>
@@ -1424,6 +1434,9 @@
             ${journalField("selfTalk", "自分への言葉", journal.selfTalk, "wide")}
             ${journalField("memo", "メモ", journal.memo, "wide")}
           </div>
+          <div class="hm-buttons">
+            <button type="button" class="hm-ai-instruction" data-make-instruction="journal">日誌を良くする相談（AI指示書を作成）</button>
+          </div>
         </section>
       </div>
     `;
@@ -1548,6 +1561,111 @@
     };
   }
 
+  function instructionTargets() {
+    return {
+      board: { area: "board", target: "board.current" },
+      perspectives: { area: "goal", target: "goal.perspectives" },
+      plan: { area: "goal", target: "goal.long" },
+      journal: { area: "journal", target: "journal.recent" }
+    };
+  }
+
+  function buildInstructionSheet(kind) {
+    const goal = activeGoal();
+    if (kind === "board") {
+      const themes = boardThemesAtPath(goal, false);
+      const summary = summarizeThemes(themes);
+      const dateText = boardCenterDate(goal) ? `（${boardCenterDate(goal)}）` : "";
+      return [
+        "いまの64分解（マンダラチャート）を、いっしょにさらに深めてください。",
+        "",
+        `【中心の目標】${boardCenterTitle(goal)}${dateText}`,
+        `【対象の64】${boardScopeLabel()} / ${boardPathLabel(goal)}`,
+        "",
+        "【現在の64分解】",
+        summary || "（まだほとんど空欄です。ゼロから提案してください）",
+        "",
+        "お願いしたいこと:",
+        "- 空欄のテーマ・行動を、目標の達成に効く具体的な内容で埋めてください。",
+        "- すでに書いてある項目は、より具体的で実行しやすい言葉に磨いてください。",
+        "- テーマ同士の粒度をそろえ、重複や抜けを整理してください。",
+        "- とくに深掘りすべきテーマには、下位64のテーマ候補も挙げてください。",
+        "- 反映できるよう、最後に反映候補のJSONブロックも必ず出してください。"
+      ].join("\n");
+    }
+    if (kind === "perspectives") {
+      const p = goal.perspectives || {};
+      return [
+        "「目的・目標の4観点」を、いっしょに深めてください。",
+        "",
+        `【目標】${goal.title || "（未設定）"}`,
+        `【何のために】${goal.purpose || "（未記入）"}`,
+        "",
+        "【現在の4観点】",
+        `■ 私・無形（内面の変化）\n${p.selfIntangible || "（未記入）"}`,
+        `■ 私・有形（見える成果）\n${p.selfTangible || "（未記入）"}`,
+        `■ 社会・他者・無形（心への影響）\n${p.othersIntangible || "（未記入）"}`,
+        `■ 社会・他者・有形（具体的な貢献）\n${p.othersTangible || "（未記入）"}`,
+        "",
+        "お願いしたいこと:",
+        "- 各観点を、より具体的で自分ごとの言葉に深める案を出してください。",
+        "- 抜けている観点や、内容が薄い観点があれば候補を足してください。",
+        "- 4つの観点が一本につながるように整理してください。"
+      ].join("\n");
+    }
+    if (kind === "plan") {
+      const plan = goal.plan || {};
+      return [
+        "「逆算の目標設定」を、いっしょに点検して深めてください。",
+        "",
+        `【長期目標】${plan.longTitle || goal.title || "（未設定）"}（${plan.longDate || goal.deadline || "日付未設定"}）`,
+        `【直近の目標】${plan.recentTitle || "（未設定）"}（${plan.recentDate || "日付未設定"}）`,
+        `【次の目標】${plan.nextTitle || "（未設定）"}（${plan.nextDate || "日付未設定"}）`,
+        `【達成メモ・残したい成長】${plan.achievedNote || "（未記入）"}`,
+        "",
+        "お願いしたいこと:",
+        "- 長期から逆算して、直近・次の目標の順序や時期が妥当か点検してください。",
+        "- 足りていないマイルストーン（中間目標）があれば提案してください。",
+        "- 各目標の達成基準（ものさし）を、測れる形に具体化してください。"
+      ].join("\n");
+    }
+    const todayJournal = journalRecord(false);
+    const recent = recentJournalSummaries(7);
+    const recentText = recent.length
+      ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"}`).join("\n")
+      : "（まだ記録がありません）";
+    return [
+      "日誌の質を上げたいです。いっしょに振り返り方を相談させてください。",
+      "",
+      "【今日の日誌】",
+      `できたこと: ${todayJournal.best || "（未記入）"}`,
+      `気づき・学び: ${todayJournal.learned || "（未記入）"}`,
+      `明日の一手: ${todayJournal.next || "（未記入）"}`,
+      "",
+      "【最近の日誌】",
+      recentText,
+      "",
+      "お願いしたいこと:",
+      "- 私の最近の日誌の傾向やパターンから、気づくことを教えてください。",
+      "- 振り返りがもっと深くなる書き方のコツを教えてください。",
+      "- 明日から日誌で自分に問いかけると良い「振り返りの問い」を3〜5個提案してください。"
+    ].join("\n");
+  }
+
+  function startCoachWith(kind, root) {
+    const target = instructionTargets()[kind] || instructionTargets().board;
+    coachArea = target.area;
+    coachTarget = target.target;
+    coachDraft = buildInstructionSheet(kind);
+    coachText = "";
+    coachSuggestions = [];
+    coachApplied = {};
+    coachApplyStatus = "下の「AIに相談する」を押すと、この指示書で相談できます。内容は編集できます。";
+    activeTab = "coach";
+    renderAll();
+    if (root) scheduleScrollToAppTitle(root, "smooth");
+  }
+
   function renderCoachHistory(memory) {
     const history = Array.isArray(memory.history) ? memory.history : [];
     if (!history.length) return '<p class="hm-muted">まだ相談履歴はありません。</p>';
@@ -1557,6 +1675,7 @@
       const message = String(item.message || "").trim();
       const response = String(item.response || "").trim();
       const handoff = String(item.handoff || "").trim();
+      const suggestions = Array.isArray(item.suggestions) ? item.suggestions : [];
       return `
         <details class="hm-memory-history-item">
           <summary>
@@ -1574,6 +1693,7 @@
               <p>${response ? escapeHtml(response).replaceAll("\n", "<br>") : "保存されたAI回答はありません。"}</p>
             </div>
             ${handoff ? `<div><b>AI引き継ぎメモ</b><p>${escapeHtml(handoff).replaceAll("\n", "<br>")}</p></div>` : ""}
+            ${suggestions.length ? `<div class="hm-history-apply"><button type="button" class="hm-ai-instruction" data-load-history-suggestions="${escapeHtml(item.id)}">この回答を64の反映候補にする（${suggestions.length}件）</button></div>` : ""}
           </div>
         </details>
       `;
@@ -1612,7 +1732,7 @@
           </div>
           <label class="hm-coach-question">
             <span>相談したい質問内容</span>
-            <textarea data-coach-message data-autosize placeholder="例: この目標に対して、明日やった方がいいことを一緒に整理してほしい。"></textarea>
+            <textarea data-coach-message data-autosize placeholder="例: この目標に対して、明日やった方がいいことを一緒に整理してほしい。">${escapeHtml(coachDraft)}</textarea>
           </label>
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
@@ -1768,6 +1888,26 @@
         activeTab = tabButton.dataset.tab;
         renderAll();
         scheduleScrollToAppTitle(root, "smooth");
+        return;
+      }
+
+      const makeInstruction = event.target.closest("[data-make-instruction]");
+      if (makeInstruction) {
+        startCoachWith(makeInstruction.dataset.makeInstruction, root);
+        return;
+      }
+
+      const loadHistory = event.target.closest("[data-load-history-suggestions]");
+      if (loadHistory) {
+        const memory = activeAiMemory();
+        const entry = (Array.isArray(memory.history) ? memory.history : []).find((h) => h.id === loadHistory.dataset.loadHistorySuggestions);
+        if (entry && Array.isArray(entry.suggestions) && entry.suggestions.length) {
+          coachSuggestions = normalizeBoardSuggestions({ boardSuggestions: entry.suggestions });
+          coachApplied = {};
+          coachApplyStatus = "履歴の回答から64の反映候補を開きました。下の候補から選んで反映できます。";
+          renderAll();
+          scheduleScrollToAppTitle(root, "smooth");
+        }
         return;
       }
 
@@ -2036,7 +2176,8 @@
           });
           coachText = data.text || "返答を取得しましたが、本文が空でした。";
           coachSuggestions = normalizeBoardSuggestions(data.suggestions);
-          recordCoachMemory(mode, message, coachText);
+          recordCoachMemory(mode, message, coachText, coachSuggestions);
+          coachDraft = "";
           memoryChanged = true;
         } catch (error) {
           coachText = `AI相談エラー: ${error.message}`;
@@ -2051,6 +2192,7 @@
     root.addEventListener("input", (event) => {
       const target = event.target;
       if (target.matches("textarea[data-autosize]")) resizeAutosizeTextarea(target);
+      if (target.matches("[data-coach-message]")) coachDraft = target.value;
       if (target.matches("[data-goal-field]")) updateGoalField(target);
       if (target.matches("[data-goal-plan-field]")) {
         const goal = activeGoal();
