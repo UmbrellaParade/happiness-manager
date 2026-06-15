@@ -1066,6 +1066,7 @@
     try {
       clearTimeout(saveTimer);
       saveTimer = null;
+      try { const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate)); console.debug("[HMDBG] saveNow START activeDate=", activeDate, "todayKeyFound=", !!_k, "todayChecks=", _k ? Object.keys((state.daily[_k] || {}).checks || {}).length : "noKey"); } catch (e) {}
       if (saveLocked) {
         saveStatus = "保護モード中のため保存を止めました。ページを再読み込みしてください。";
         saveTone = "error";
@@ -1084,7 +1085,7 @@
       saveStatus = "WordPressに保存中...";
       saveTone = "saving";
       renderAll(false);
-      try { let _tc = 0; Object.values(state.daily || {}).forEach((d) => { const c = (d && d.checks) || {}; _tc += Object.keys(c).filter((k) => c[k]).length; }); console.debug("[HMDBG] saveNow trueChecks=", _tc, "dailyKeys=", Object.keys(state.daily || {}).length); } catch (e) {}
+      try { const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate)); const _body = JSON.stringify({ state }); const _parsed = JSON.parse(_body).state.daily; const _pk = Object.keys(_parsed || {}).find((x) => String(x).endsWith(activeDate)); console.debug("[HMDBG] saveNow PRE-STRINGIFY liveTodayChecks=", _k ? Object.keys((state.daily[_k] || {}).checks || {}).length : "noKey", "serializedTodayChecks=", _pk ? Object.keys((_parsed[_pk] || {}).checks || {}).length : "noKey"); } catch (e) {}
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       const data = await apiFetch("/state", {
         method: "POST",
