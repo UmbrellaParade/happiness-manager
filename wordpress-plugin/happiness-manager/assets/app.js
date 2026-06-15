@@ -69,6 +69,7 @@
   function blankAction() {
     return {
       text: "",
+      note: "",
       routine: false,
       subs: [],
       childThemes: null
@@ -171,6 +172,7 @@
       : null;
     return {
       text: action && action.text ? String(action.text) : "",
+      note: action && action.note ? String(action.note) : "",
       routine: Boolean(action && action.routine),
       subs: normalizeLines(action && action.subs),
       childThemes
@@ -226,6 +228,7 @@
       goals: [goal],
       daily: {},
       journals: {},
+      todayTasks: {},
       aiMemory: { [profileId]: blankAiMemory() }
     };
   }
@@ -239,6 +242,7 @@
     next.daily = plainObject(next.daily);
     next.journals = plainObject(next.journals);
     next.aiMemory = plainObject(next.aiMemory);
+    next.todayTasks = plainObject(next.todayTasks);
     Object.keys(next.daily).forEach((key) => {
       if (next.daily[key] && typeof next.daily[key] === "object") {
         next.daily[key].checks = plainObject(next.daily[key].checks);
@@ -717,6 +721,7 @@
       const actions = Array.isArray(item?.actions) ? item.actions.slice(0, 8).map((action) => ({
         index: normalizeSuggestionIndex(action?.index),
         text: String(action?.text || "").trim(),
+        note: String(action?.note || "").trim(),
         routine: Boolean(action?.routine)
       })).filter((action) => action.text) : [];
       return {
@@ -779,12 +784,14 @@
     if (part === "all") {
       suggestion.actions.forEach((action) => {
         theme.actions[action.index].text = action.text;
+        if (action.note) theme.actions[action.index].note = action.note;
         if (action.routine) theme.actions[action.index].routine = true;
       });
     } else if (part === "action") {
       const action = suggestion.actions.find((item) => item.index === actionIndex);
       if (!action) return false;
       theme.actions[action.index].text = action.text;
+      if (action.note) theme.actions[action.index].note = action.note;
       if (action.routine) theme.actions[action.index].routine = true;
     }
 
@@ -999,10 +1006,15 @@
     return Array.from(byText.values());
   }
 
+  function todayTaskList(date = activeDate) {
+    const list = (state.todayTasks || {})[dayKey(date)];
+    return Array.isArray(list) ? list : [];
+  }
+
   function todayActionItems() {
     const previousDate = shiftDate(activeDate, -1);
     const previousJournal = journalRecordForDate(previousDate);
-    return normalizeLines(previousJournal.next).map((text, index) => {
+    const fromJournal = normalizeLines(previousJournal.next).map((text, index) => {
       const key = routineKey(text) || `item-${index + 1}`;
       return {
         id: `today-action:${state.activeProfileId}:${activeDate}:${previousDate}:${index}:${key}`,
@@ -1012,6 +1024,15 @@
         sourceIds: [`today-action:${state.activeProfileId}:${activeDate}:${previousDate}:${index}:${key}`]
       };
     });
+    const manual = todayTaskList().map((item) => ({
+      id: `today-extra:${item.id}`,
+      text: String(item.text || ""),
+      goalTitle: "今日やること",
+      themeTitle: "自分で追加",
+      sourceIds: [`today-extra:${item.id}`],
+      removableTaskId: item.id
+    }));
+    return [...fromJournal, ...manual];
   }
 
   async function apiFetch(path, options = {}) {
@@ -1311,6 +1332,7 @@
             <div class="hm-action-row">
               <span>${index + 1}</span>
               <input data-action-theme-index="${selectedThemeIndex}" data-action-index="${index}" value="${escapeHtml(action.text)}" placeholder="行動">
+              <textarea class="hm-action-note" data-action-note-theme="${selectedThemeIndex}" data-action-note-index="${index}" data-autosize placeholder="メモ（→以降のアドバイス）">${escapeHtml(action.note || "")}</textarea>
               <div class="hm-action-buttons">
                 <button type="button" data-routine-theme="${selectedThemeIndex}" data-routine-action="${index}" class="${action.routine ? "active" : ""}">${action.routine ? "毎日" : "候補"}</button>
                 <button type="button" data-open-child-board="${selectedThemeIndex}:${index}">下位64</button>
@@ -1431,7 +1453,11 @@
           <h3>ルーティン</h3>
           ${items.length ? items.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
           <h3>今日やること</h3>
-          ${todayItems.length ? todayItems.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">前日の「明日の一手」に書いたことがここに表示されます。</p>'}
+          ${todayItems.length ? todayItems.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">前日の「明日の一手」や、下で追加した項目がここに表示されます。</p>'}
+          <div class="hm-today-add">
+            <input type="text" data-today-task-input placeholder="今日やることを追加" aria-label="今日やることを追加">
+            <button type="button" data-add-today-task>追加</button>
+          </div>
         </section>
         <section class="hm-panel">
           <header><h2>日誌</h2></header>
@@ -1455,7 +1481,8 @@
     const sourceIds = Array.isArray(item.sourceIds) && item.sourceIds.length ? item.sourceIds : [item.id];
     const checked = sourceIds.some((id) => daily.checks[id]);
     const mergedLabel = sourceIds.length > 1 ? ` / 同じルーティン${sourceIds.length}件` : "";
-    return `<label class="hm-check"><input type="checkbox" data-routine-check="${escapeHtml(item.id)}" data-routine-source-ids="${escapeHtml(JSON.stringify(sourceIds))}" ${checked ? "checked" : ""}> <span>${escapeHtml(item.text)}<small>${escapeHtml(item.goalTitle)} / ${escapeHtml(item.themeTitle)}${escapeHtml(mergedLabel)}</small></span></label>`;
+    const deleteButton = item.removableTaskId ? `<button type="button" class="hm-today-del" data-del-today-task="${escapeHtml(item.removableTaskId)}" title="削除" aria-label="削除">×</button>` : "";
+    return `<label class="hm-check"><input type="checkbox" data-routine-check="${escapeHtml(item.id)}" data-routine-source-ids="${escapeHtml(JSON.stringify(sourceIds))}" ${checked ? "checked" : ""}> <span>${escapeHtml(item.text)}<small>${escapeHtml(item.goalTitle)} / ${escapeHtml(item.themeTitle)}${escapeHtml(mergedLabel)}</small></span>${deleteButton}</label>`;
   }
 
   function slider(key, label, value) {
@@ -1847,7 +1874,7 @@
             ${suggestion.actions.map((action) => `
               <div class="hm-coach-suggestion-row">
                 <span>${suggestion.themeIndex + 1}-${action.index + 1}</span>
-                <p>${escapeHtml(action.text)}${action.routine ? " / 毎日候補" : ""}</p>
+                <p>${escapeHtml(action.text)}${action.routine ? " / 毎日候補" : ""}${action.note ? `<br><small>→ ${escapeHtml(action.note)}</small>` : ""}</p>
                 <button type="button" data-apply-coach-suggestion-action="${escapeHtml(suggestion.id)}:${action.index}"${coachSuggestionDisabledAttr(suggestion, "action", action.index)}>${coachSuggestionAppliedLabel(suggestion, "action", action.index)}</button>
               </div>
             `).join("")}
@@ -1863,7 +1890,7 @@
     return themes.map((theme, themeIndex) => {
       const subItems = normalizeLines(theme.subs);
       const actions = theme.actions
-        .map((action, actionIndex) => action.text ? `${themeIndex + 1}-${actionIndex + 1}. ${action.text}` : "")
+        .map((action, actionIndex) => action.text ? `${themeIndex + 1}-${actionIndex + 1}. ${action.text}${action.note ? ` → ${action.note}` : ""}` : "")
         .filter(Boolean)
         .slice(0, 8)
         .join("\n");
@@ -1998,6 +2025,32 @@
         const goal = createGoal(state.activeProfileId);
         state.goals.push(goal);
         state.activeGoalId = goal.id;
+        queueSave();
+        renderAll();
+        return;
+      }
+
+      if (event.target.closest("[data-add-today-task]")) {
+        const input = root.querySelector("[data-today-task-input]");
+        const text = (input?.value || "").trim();
+        if (!text) return;
+        state.todayTasks = plainObject(state.todayTasks);
+        const key = dayKey();
+        if (!Array.isArray(state.todayTasks[key])) state.todayTasks[key] = [];
+        state.todayTasks[key].push({ id: uid("task"), text });
+        queueSave();
+        renderAll();
+        return;
+      }
+
+      const delToday = event.target.closest("[data-del-today-task]");
+      if (delToday) {
+        event.preventDefault();
+        const taskId = delToday.dataset.delTodayTask;
+        const key = dayKey();
+        if (state.todayTasks && Array.isArray(state.todayTasks[key])) {
+          state.todayTasks[key] = state.todayTasks[key].filter((t) => t && t.id !== taskId);
+        }
         queueSave();
         renderAll();
         return;
@@ -2297,6 +2350,13 @@
       if (target.matches("[data-theme-subs]")) {
         const themeIndex = Number(target.dataset.themeSubs);
         boardThemesAtPath(activeGoal(), true)[themeIndex].subs = normalizeLines(target.value);
+        selectedThemeIndex = themeIndex;
+        queueSave();
+      }
+      if (target.matches("[data-action-note-index]")) {
+        const themeIndex = Number(target.dataset.actionNoteTheme);
+        const actionIndex = Number(target.dataset.actionNoteIndex);
+        boardThemesAtPath(activeGoal(), true)[themeIndex].actions[actionIndex].note = target.value;
         selectedThemeIndex = themeIndex;
         queueSave();
       }

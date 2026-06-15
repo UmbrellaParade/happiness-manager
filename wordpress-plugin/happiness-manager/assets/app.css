@@ -583,6 +583,21 @@
   margin-top: 5px;
 }
 
+.hm-action-note {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fbfcfd;
+  color: var(--hm-ink);
+  padding: 6px 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 .hm-action-buttons {
   grid-column: 2;
   display: flex;
@@ -772,7 +787,7 @@
 
 .hm-check {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
   border: 1px solid var(--hm-line);
@@ -784,6 +799,44 @@
 .hm-check span,
 .hm-check small {
   display: block;
+}
+
+.hm-today-del {
+  align-self: center;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: #a33b2e;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.hm-today-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hm-today-add input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: var(--hm-ink);
+  padding: 8px 10px;
+}
+
+.hm-today-add button {
+  flex: 0 0 auto;
+  border: 1px solid #98c7b9;
+  border-radius: var(--hm-radius);
+  background: #e8f4f0;
+  color: #1e5f4f;
+  font-weight: 800;
+  padding: 8px 14px;
 }
 
 .hm-coach {
