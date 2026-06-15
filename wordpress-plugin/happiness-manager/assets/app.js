@@ -675,9 +675,9 @@
       id: uid("coach"),
       at: new Date().toISOString(),
       mode,
-      message: limitText(message, 900),
-      response: limitText(responseText, 1400),
-      handoff: limitText(handoff, 900),
+      message: limitText(message, 2000),
+      response: limitText(responseText, 8000),
+      handoff: limitText(handoff, 1200),
       suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 12) : []
     };
 
@@ -1084,6 +1084,7 @@
       saveStatus = "WordPressに保存中...";
       saveTone = "saving";
       renderAll(false);
+      try { let _tc = 0; Object.values(state.daily || {}).forEach((d) => { const c = (d && d.checks) || {}; _tc += Object.keys(c).filter((k) => c[k]).length; }); console.debug("[HMDBG] saveNow trueChecks=", _tc, "dailyKeys=", Object.keys(state.daily || {}).length); } catch (e) {}
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       const data = await apiFetch("/state", {
         method: "POST",
@@ -2355,10 +2356,17 @@
         if (!Array.isArray(sourceIds) || !sourceIds.length) {
           sourceIds = [target.dataset.routineCheck];
         }
-        const checks = dailyRecord(true).checks;
+        const key = dayKey();
+        if (!state.daily[key] || typeof state.daily[key] !== "object") {
+          state.daily[key] = blankDailyRecord();
+        }
+        if (!state.daily[key].checks || typeof state.daily[key].checks !== "object") {
+          state.daily[key].checks = {};
+        }
         sourceIds.forEach((id) => {
-          checks[id] = target.checked;
+          if (id) state.daily[key].checks[id] = target.checked;
         });
+        try { console.debug("[HMDBG] check write key=", key, "checked=", target.checked, "checksNow=", Object.keys(state.daily[key].checks).filter((k) => state.daily[key].checks[k]).length); } catch (e) {}
         queueSave();
       }
       if (target.matches("[data-memory-item-kind]")) {
