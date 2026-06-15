@@ -236,9 +236,14 @@
     next.activeProfileId = next.activeProfileId || next.profiles[0].id;
     next.goals = Array.isArray(next.goals) ? next.goals : [];
     next.boardMode = next.boardMode === "open" ? "open" : "edit";
-    next.daily = next.daily && typeof next.daily === "object" ? next.daily : {};
-    next.journals = next.journals && typeof next.journals === "object" ? next.journals : {};
-    next.aiMemory = next.aiMemory && typeof next.aiMemory === "object" ? next.aiMemory : {};
+    next.daily = plainObject(next.daily);
+    next.journals = plainObject(next.journals);
+    next.aiMemory = plainObject(next.aiMemory);
+    Object.keys(next.daily).forEach((key) => {
+      if (next.daily[key] && typeof next.daily[key] === "object") {
+        next.daily[key].checks = plainObject(next.daily[key].checks);
+      }
+    });
 
     if (!next.profiles.some((profile) => profile.id === next.activeProfileId)) {
       next.activeProfileId = next.profiles[0].id;
@@ -591,6 +596,10 @@
     return Math.min(5, Math.max(1, Math.round(number)));
   }
 
+  function plainObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
   function normalizeDailyRecord(record) {
     const source = record && typeof record === "object" ? record : {};
     return {
@@ -598,7 +607,7 @@
       energy: dailyValue(source.energy),
       load: dailyValue(source.load),
       focus: dailyValue(source.focus),
-      checks: source.checks && typeof source.checks === "object" ? source.checks : {}
+      checks: plainObject(source.checks)
     };
   }
 
@@ -1066,7 +1075,6 @@
     try {
       clearTimeout(saveTimer);
       saveTimer = null;
-      try { const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate)); console.debug("[HMDBG] saveNow START activeDate=", activeDate, "todayKeyFound=", !!_k, "todayChecks=", _k ? Object.keys((state.daily[_k] || {}).checks || {}).length : "noKey"); } catch (e) {}
       if (saveLocked) {
         saveStatus = "保護モード中のため保存を止めました。ページを再読み込みしてください。";
         saveTone = "error";
@@ -1085,21 +1093,6 @@
       saveStatus = "WordPressに保存中...";
       saveTone = "saving";
       renderAll(false);
-      try {
-        window.__hmState = state;
-        const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate));
-        const _co = _k ? (state.daily[_k] || {}).checks : null;
-        const info = _co ? {
-          proto: Object.getPrototypeOf(_co) === Object.prototype ? "plain" : (Object.getPrototypeOf(_co) === null ? "null" : "other"),
-          hasToJSON: typeof _co.toJSON,
-          ownNames: Object.getOwnPropertyNames(_co).length,
-          ownKeys: Object.keys(_co).length,
-          stringifyDirect: JSON.stringify(_co),
-          recordHasToJSON: typeof (state.daily[_k] || {}).toJSON,
-          dailyHasToJSON: typeof state.daily.toJSON
-        } : "noChecks";
-        console.debug("[HMDBG] checksInfo", JSON.stringify(info));
-      } catch (e) { console.debug("[HMDBG] checksInfo err", String(e)); }
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       const data = await apiFetch("/state", {
         method: "POST",
@@ -2371,17 +2364,10 @@
         if (!Array.isArray(sourceIds) || !sourceIds.length) {
           sourceIds = [target.dataset.routineCheck];
         }
-        const key = dayKey();
-        if (!state.daily[key] || typeof state.daily[key] !== "object") {
-          state.daily[key] = blankDailyRecord();
-        }
-        if (!state.daily[key].checks || typeof state.daily[key].checks !== "object") {
-          state.daily[key].checks = {};
-        }
+        const checks = dailyRecord(true).checks;
         sourceIds.forEach((id) => {
-          if (id) state.daily[key].checks[id] = target.checked;
+          if (id) checks[id] = target.checked;
         });
-        try { console.debug("[HMDBG] check write key=", key, "checked=", target.checked, "checksNow=", Object.keys(state.daily[key].checks).filter((k) => state.daily[key].checks[k]).length); } catch (e) {}
         queueSave();
       }
       if (target.matches("[data-memory-item-kind]")) {
