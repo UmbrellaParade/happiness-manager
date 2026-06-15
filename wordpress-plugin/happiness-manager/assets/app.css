@@ -1073,6 +1073,17 @@
   padding: 12px;
 }
 
+.hm-coach-status {
+  border: 1px solid #98c7b9;
+  border-radius: var(--hm-radius);
+  background: #e8f4f0;
+  color: #1e5f4f !important;
+  -webkit-text-fill-color: #1e5f4f !important;
+  margin: 0;
+  padding: 9px 10px;
+  font-weight: 800;
+}
+
 .hm-coach-suggestions {
   display: grid;
   gap: 10px;

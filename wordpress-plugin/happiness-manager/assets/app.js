@@ -1534,6 +1534,7 @@
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
           <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
+          ${renderCoachStatus()}
         </div>
       </section>
     `;
@@ -1794,6 +1795,11 @@
     }).join("");
   }
 
+  function renderCoachStatus() {
+    if (!coachApplyStatus || coachSuggestions.length) return "";
+    return `<p class="hm-coach-status">${escapeHtml(coachApplyStatus)}</p>`;
+  }
+
   function renderCoach() {
     const memory = activeAiMemory();
     const goal = activeGoal();
@@ -1831,6 +1837,7 @@
           <button type="button" data-ask-coach ${coachBusy ? "disabled" : ""}>${coachBusy ? "相談中..." : "AIに相談する"}</button>
           ${config.hasApiKey ? "" : '<p class="hm-muted">AIを使うには、WordPress管理画面のAI設定にOpenAI APIキーを保存してください。</p>'}
           <div class="hm-coach-result">${coachText ? escapeHtml(coachText).replaceAll("\n", "<br>") : "AIの返答がここに表示されます。"}</div>
+          ${renderCoachStatus()}
           ${renderCoachSuggestions()}
           <label class="hm-handoff-box">
             <span>AI引き継ぎメモ</span>
