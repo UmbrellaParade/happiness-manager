@@ -1085,7 +1085,21 @@
       saveStatus = "WordPressに保存中...";
       saveTone = "saving";
       renderAll(false);
-      try { const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate)); const _body = JSON.stringify({ state }); const _parsed = JSON.parse(_body).state.daily; const _pk = Object.keys(_parsed || {}).find((x) => String(x).endsWith(activeDate)); console.debug("[HMDBG] saveNow PRE-STRINGIFY liveTodayChecks=", _k ? Object.keys((state.daily[_k] || {}).checks || {}).length : "noKey", "serializedTodayChecks=", _pk ? Object.keys((_parsed[_pk] || {}).checks || {}).length : "noKey"); } catch (e) {}
+      try {
+        window.__hmState = state;
+        const _k = Object.keys(state.daily || {}).find((x) => String(x).endsWith(activeDate));
+        const _co = _k ? (state.daily[_k] || {}).checks : null;
+        const info = _co ? {
+          proto: Object.getPrototypeOf(_co) === Object.prototype ? "plain" : (Object.getPrototypeOf(_co) === null ? "null" : "other"),
+          hasToJSON: typeof _co.toJSON,
+          ownNames: Object.getOwnPropertyNames(_co).length,
+          ownKeys: Object.keys(_co).length,
+          stringifyDirect: JSON.stringify(_co),
+          recordHasToJSON: typeof (state.daily[_k] || {}).toJSON,
+          dailyHasToJSON: typeof state.daily.toJSON
+        } : "noChecks";
+        console.debug("[HMDBG] checksInfo", JSON.stringify(info));
+      } catch (e) { console.debug("[HMDBG] checksInfo err", String(e)); }
       localStorage.setItem(STORAGE_FALLBACK_KEY, JSON.stringify(state));
       const data = await apiFetch("/state", {
         method: "POST",
