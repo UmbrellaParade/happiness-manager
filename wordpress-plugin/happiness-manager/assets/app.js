@@ -688,15 +688,15 @@
       id: uid("coach"),
       at: new Date().toISOString(),
       mode,
-      message: limitText(message, 2000),
-      response: limitText(responseText, 8000),
-      handoff: limitText(handoff, 1200),
+      message: limitText(message, 6000),
+      response: limitText(responseText, 30000),
+      handoff: limitText(handoff, 4000),
       suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 12) : []
     };
 
     memory.history = [entry, ...(Array.isArray(memory.history) ? memory.history : [])].slice(0, 8);
     const summary = handoff || `相談: ${limitText(message, 220)}\nAI: ${limitText(responseText, 420)}`;
-    memory.handoff = limitText(`${today()} ${mode}\n${summary}\n\n${memory.handoff || ""}`, 5000);
+    memory.handoff = limitText(`${today()} ${mode}\n${summary}\n\n${memory.handoff || ""}`, 12000);
   }
 
   function normalizeSuggestionIndex(value) {

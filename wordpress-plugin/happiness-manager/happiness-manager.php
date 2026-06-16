@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.42
+ * Version: 0.1.43
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.42';
+    private const VERSION = '0.1.43';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -26,6 +26,8 @@ final class Happiness_Manager_Plugin {
     private const OPTION_API_KEY = 'hm_openai_api_key';
     private const OPTION_MODEL = 'hm_openai_model';
     private const DEFAULT_MODEL = 'gpt-5.5';
+    private const AI_MAX_OUTPUT_TOKENS = 16000;
+    private const AI_TIMEOUT_SECONDS = 240;
 
     public static function boot(): void {
         add_action('init', [__CLASS__, 'maybe_upgrade_options'], 5);
@@ -683,7 +685,7 @@ final class Happiness_Manager_Plugin {
         }
 
         $encoded = wp_json_encode($state);
-        if (!is_string($encoded) || strlen($encoded) > 2000000) {
+        if (!is_string($encoded) || strlen($encoded) > 5000000) {
             return new WP_Error('hm_state_too_large', 'Saved data is too large.', ['status' => 413]);
         }
 
@@ -729,11 +731,14 @@ final class Happiness_Manager_Plugin {
 
         $context = self::compact_ai_context($context);
         $prompt = self::build_ai_prompt_v2($mode, $message, $context);
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(self::AI_TIMEOUT_SECONDS + 30);
+        }
         $body = [
             'model' => self::sanitize_model(get_option(self::OPTION_MODEL, self::DEFAULT_MODEL)),
             'instructions' => self::ai_instructions_v2(),
             'input' => $prompt,
-            'max_output_tokens' => 8000,
+            'max_output_tokens' => self::AI_MAX_OUTPUT_TOKENS,
         ];
 
         $response = wp_remote_post('https://api.openai.com/v1/responses', [
@@ -742,13 +747,13 @@ final class Happiness_Manager_Plugin {
                 'Content-Type' => 'application/json',
             ],
             'body' => wp_json_encode($body),
-            'timeout' => 90,
+            'timeout' => self::AI_TIMEOUT_SECONDS,
         ]);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
             if (stripos($error_message, 'cURL error 28') !== false || stripos($error_message, 'timed out') !== false) {
-                $error_message = 'AIの応答が時間切れになりました。長文情報は自動で短くして送るようにしました。もう一度試してみてください。';
+                $error_message = 'AIの応答が時間切れになりました。待ち時間は長めにしていますが、64分解などの長文相談は時間がかかることがあります。少し短めに分けてもう一度試してください。';
             }
             return new WP_Error('hm_openai_request_failed', $error_message, ['status' => 502]);
         }
