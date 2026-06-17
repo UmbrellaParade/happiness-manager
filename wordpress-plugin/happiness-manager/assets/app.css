@@ -55,14 +55,14 @@
   color: var(--hm-ink);
 }
 
-.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
+.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result, .hm-stretch-menu, .hm-condition-chart, .hm-journal-history, .hm-journal-history-field) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
   color: var(--hm-ink) !important;
   -webkit-text-fill-color: var(--hm-ink) !important;
   opacity: 1 !important;
   text-shadow: none !important;
 }
 
-.hm-app-root :where(.hm-muted, .hm-board-context small, .hm-theme-card small, .hm-theme-card span, .hm-open-cell small, .hm-check small, .hm-theme-subs-head small, .hm-selected-theme-window-head small, .hm-memory-entry summary small, .hm-memory-entry summary em, .hm-memory-history-item small, .hm-coach-suggestions-head small, .hm-coach-suggestion-title small, .hm-coach-suggestion-row span, .hm-archive-entry summary small, .hm-archive-entry summary em, .hm-archive-grid small) {
+.hm-app-root :where(.hm-muted, .hm-board-context small, .hm-theme-card small, .hm-theme-card span, .hm-open-cell small, .hm-check small, .hm-theme-subs-head small, .hm-selected-theme-window-head small, .hm-memory-entry summary small, .hm-memory-entry summary em, .hm-memory-history-item small, .hm-coach-suggestions-head small, .hm-coach-suggestion-title small, .hm-coach-suggestion-row span, .hm-archive-entry summary small, .hm-archive-entry summary em, .hm-archive-grid small, .hm-condition-chart header small, .hm-journal-history-field summary span, .hm-journal-history-field time) {
   color: var(--hm-muted) !important;
   -webkit-text-fill-color: var(--hm-muted) !important;
   opacity: 1 !important;
@@ -839,6 +839,160 @@
   padding: 8px 14px;
 }
 
+.hm-fitness-log {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-fitness-log span,
+.hm-stretch-menu label span {
+  font-size: 13px;
+}
+
+.hm-stretch-menu {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 10px;
+}
+
+.hm-stretch-menu label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-stretch-menu textarea {
+  min-height: 78px;
+}
+
+.hm-stretch-link {
+  width: fit-content;
+  border: 1px solid #98c7b9;
+  border-radius: var(--hm-radius);
+  background: #e8f4f0;
+  color: #1e5f4f;
+  padding: 7px 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.hm-stretch-image {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+}
+
+.hm-journal-insights {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.hm-condition-chart .hm-chart-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 8px;
+}
+
+.hm-condition-chart svg {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+}
+
+.hm-chart-grid {
+  stroke: #e7ecf2;
+  stroke-width: 1;
+}
+
+.hm-chart-axis-line {
+  stroke: #9aa7b7;
+  stroke-width: 1.5;
+}
+
+.hm-chart-axis {
+  fill: var(--hm-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hm-chart-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hm-chart-legend span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.hm-chart-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.hm-journal-history-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.hm-journal-history-field {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 10px;
+}
+
+.hm-journal-history-field summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hm-journal-history-field > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hm-journal-history-field article {
+  border: 1px solid #eef2f7;
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 8px;
+}
+
+.hm-journal-history-field time {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hm-journal-history-field p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .hm-coach {
   display: grid;
   gap: 10px;
@@ -1290,6 +1444,7 @@
   .hm-grid-2,
   .hm-form-grid,
   .hm-perspectives,
+  .hm-journal-insights,
   .hm-board-edit {
     grid-template-columns: 1fr;
   }
@@ -1336,6 +1491,10 @@
 
   .hm-memory-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hm-condition-chart svg {
+    min-width: 560px;
   }
 
   .hm-memory-editor,
@@ -1399,6 +1558,21 @@
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-panel {
     padding: 12px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] textarea[data-coach-message] {
+    max-height: 42dvh;
+    overflow-y: auto;
+    resize: vertical;
+    scroll-margin-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-coach-question {
+    scroll-margin-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-stretch-image {
+    max-height: 62dvh;
   }
 
   .hm-coach-suggestions-head,

@@ -126,6 +126,13 @@
     };
   }
 
+  function blankWellnessSettings() {
+    return {
+      stretchImageUrl: "",
+      stretchMemo: ""
+    };
+  }
+
   function createGoal(profileId) {
     return {
       id: uid("goal"),
@@ -229,6 +236,7 @@
       daily: {},
       journals: {},
       todayTasks: {},
+      wellness: { [profileId]: blankWellnessSettings() },
       aiMemory: { [profileId]: blankAiMemory() }
     };
   }
@@ -243,6 +251,7 @@
     next.journals = plainObject(next.journals);
     next.aiMemory = plainObject(next.aiMemory);
     next.todayTasks = plainObject(next.todayTasks);
+    next.wellness = plainObject(next.wellness);
     Object.keys(next.daily).forEach((key) => {
       if (next.daily[key] && typeof next.daily[key] === "object") {
         next.daily[key].checks = plainObject(next.daily[key].checks);
@@ -255,11 +264,18 @@
 
     next.profiles.forEach((profile) => {
       next.aiMemory[profile.id] = normalizeAiMemory(next.aiMemory[profile.id]);
+      next.wellness[profile.id] = normalizeWellnessSettings(next.wellness[profile.id]);
     });
 
     Object.keys(next.aiMemory).forEach((profileId) => {
       if (!next.profiles.some((profile) => profile.id === profileId)) {
         delete next.aiMemory[profileId];
+      }
+    });
+
+    Object.keys(next.wellness).forEach((profileId) => {
+      if (!next.profiles.some((profile) => profile.id === profileId)) {
+        delete next.wellness[profileId];
       }
     });
 
@@ -332,6 +348,14 @@
         handoff: String(item && item.handoff ? item.handoff : ""),
         suggestions: normalizeBoardSuggestions({ boardSuggestions: Array.isArray(item && item.suggestions) ? item.suggestions : [] })
       }))
+    };
+  }
+
+  function normalizeWellnessSettings(settings) {
+    const source = settings && typeof settings === "object" ? settings : {};
+    return {
+      stretchImageUrl: String(source.stretchImageUrl || ""),
+      stretchMemo: String(source.stretchMemo || "")
     };
   }
 
@@ -625,11 +649,15 @@
   }
 
   function blankJournalRecord() {
-    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", memo: "" };
+    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", memo: "" };
   }
 
   function normalizeJournalRecord(record) {
-    return Object.assign(blankJournalRecord(), record && typeof record === "object" ? record : {});
+    const next = Object.assign(blankJournalRecord(), record && typeof record === "object" ? record : {});
+    Object.keys(blankJournalRecord()).forEach((key) => {
+      next[key] = String(next[key] || "");
+    });
+    return next;
   }
 
   function journalRecord(forWrite = false) {
@@ -655,6 +683,17 @@
     return state.aiMemory[state.activeProfileId];
   }
 
+  function activeWellnessSettings() {
+    if (!state.wellness || typeof state.wellness !== "object") {
+      state.wellness = {};
+    }
+    if (!state.wellness[state.activeProfileId]) {
+      state.wellness[state.activeProfileId] = blankWellnessSettings();
+    }
+    state.wellness[state.activeProfileId] = normalizeWellnessSettings(state.wellness[state.activeProfileId]);
+    return state.wellness[state.activeProfileId];
+  }
+
   function limitText(value, maxLength = 900) {
     const text = String(value || "").trim();
     return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
@@ -674,11 +713,35 @@
         best: limitText(journal.best, 220),
         learned: limitText(journal.learned, 220),
         next: limitText(journal.next, 220),
-        memo: limitText(journal.memo, 220)
+        memo: limitText(journal.memo, 220),
+        fitnessLog: limitText(journal.fitnessLog, 220)
       }))
-      .filter((item) => item.best || item.learned || item.next || item.memo)
+      .filter((item) => item.best || item.learned || item.next || item.memo || item.fitnessLog)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
+  }
+
+  function journalHistoryEntries(limit = 60) {
+    return Object.entries(state.journals || {})
+      .filter(([key]) => key.startsWith(`${state.activeProfileId}|`))
+      .map(([key, journal]) => ({
+        date: key.split("|")[1] || "",
+        journal: normalizeJournalRecord(journal)
+      }))
+      .filter((item) => Object.values(item.journal).some((value) => String(value || "").trim()))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
+  }
+
+  function conditionHistory(limit = 30) {
+    return Object.entries(state.daily || {})
+      .filter(([key]) => key.startsWith(`${state.activeProfileId}|`))
+      .map(([key, daily]) => ({
+        date: key.split("|")[1] || "",
+        daily: normalizeDailyRecord(daily)
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-limit);
   }
 
   function recordCoachMemory(mode, message, responseText, suggestions) {
@@ -1150,8 +1213,14 @@
   }
 
   function resizeAutosizeTextarea(textarea) {
+    const root = textarea.closest(".hm-app-root");
+    const capHeight = root && textarea.matches("[data-coach-message]") && shouldReturnToAppTitle(root)
+      ? Math.max(180, Math.round(window.innerHeight * 0.42))
+      : null;
     textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    const nextHeight = capHeight ? Math.min(textarea.scrollHeight, capHeight) : textarea.scrollHeight;
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = capHeight && textarea.scrollHeight > capHeight ? "auto" : "hidden";
   }
 
   function resizeAutosizeTextareas(root) {
@@ -1440,6 +1509,7 @@
   function renderJournal() {
     const daily = dailyRecord();
     const journal = journalRecord();
+    const wellness = activeWellnessSettings();
     const items = routineItems();
     const todayItems = todayActionItems();
     return `
@@ -1458,6 +1528,13 @@
             <input type="text" data-today-task-input placeholder="今日やることを追加" aria-label="今日やることを追加">
             <button type="button" data-add-today-task>追加</button>
           </div>
+          <h3>体力ログ</h3>
+          <label class="hm-fitness-log">
+            <span>筋トレ・歩数・体調メモ</span>
+            <textarea data-journal-field="fitnessLog" data-autosize placeholder="例: 腕立て10回、スクワット20回、肩まわりストレッチ">${escapeHtml(journal.fitnessLog)}</textarea>
+          </label>
+          <h3>ストレッチメニュー</h3>
+          ${renderStretchMenu(wellness)}
         </section>
         <section class="hm-panel">
           <header><h2>日誌</h2></header>
@@ -1474,6 +1551,143 @@
           </div>
         </section>
       </div>
+      <div class="hm-journal-insights">
+        ${renderConditionGraph()}
+        ${renderJournalHistory()}
+      </div>
+    `;
+  }
+
+  function safeImageUrl(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    try {
+      const url = new URL(text, window.location.href);
+      return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function renderStretchMenu(wellness) {
+    const imageUrl = safeImageUrl(wellness.stretchImageUrl);
+    const hasRawUrl = String(wellness.stretchImageUrl || "").trim();
+    const preview = imageUrl
+      ? `<a class="hm-stretch-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">画像を別タブで開く</a><img class="hm-stretch-image" src="${escapeHtml(imageUrl)}" alt="ストレッチメニュー">`
+      : `<p class="hm-muted">${hasRawUrl ? "画像URLを確認してください。" : "WordPressメディアなどの画像URLを入れると、ここで見られます。"}</p>`;
+    return `
+      <div class="hm-stretch-menu">
+        <label>
+          <span>メニュー表の画像URL</span>
+          <input type="url" data-wellness-field="stretchImageUrl" value="${escapeHtml(wellness.stretchImageUrl)}" placeholder="https://...">
+        </label>
+        <label>
+          <span>メモ</span>
+          <textarea data-wellness-field="stretchMemo" data-autosize placeholder="例: 朝は首肩、夜は股関節を優先">${escapeHtml(wellness.stretchMemo)}</textarea>
+        </label>
+        ${preview}
+      </div>
+    `;
+  }
+
+  function renderConditionGraph() {
+    const history = conditionHistory(30);
+    const series = [
+      ["mood", "気分", "#2f68b8"],
+      ["energy", "体力", "#2f7c68"],
+      ["load", "負荷", "#b85f2f"],
+      ["focus", "集中", "#6f56b3"]
+    ];
+    if (!history.length) {
+      return `
+        <section class="hm-panel hm-condition-chart">
+          <header><h2>コンディションの過去ログ</h2></header>
+          <p class="hm-muted">コンディションを記録すると、ここにグラフが表示されます。</p>
+        </section>
+      `;
+    }
+
+    const width = 640;
+    const height = 220;
+    const left = 38;
+    const right = 14;
+    const top = 18;
+    const bottom = 34;
+    const graphWidth = width - left - right;
+    const graphHeight = height - top - bottom;
+    const xFor = (index) => left + (history.length === 1 ? graphWidth / 2 : (graphWidth * index) / (history.length - 1));
+    const yFor = (value) => top + ((5 - value) / 4) * graphHeight;
+    const grid = [1, 2, 3, 4, 5].map((value) => {
+      const y = yFor(value);
+      return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="hm-chart-grid"></line><text x="8" y="${y + 4}" class="hm-chart-axis">${value}</text>`;
+    }).join("");
+    const lines = series.map(([key, label, color]) => {
+      const points = history.map((item, index) => `${xFor(index).toFixed(1)},${yFor(item.daily[key]).toFixed(1)}`).join(" ");
+      const dots = history.map((item, index) => `<circle cx="${xFor(index).toFixed(1)}" cy="${yFor(item.daily[key]).toFixed(1)}" r="3" fill="${color}"><title>${escapeHtml(item.date)} ${escapeHtml(label)} ${item.daily[key]}</title></circle>`).join("");
+      return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>${dots}`;
+    }).join("");
+    const startDate = history[0]?.date || "";
+    const endDate = history[history.length - 1]?.date || "";
+    const latest = history[history.length - 1].daily;
+    const latestText = series.map(([key, label]) => `${label}${latest[key]}`).join(" / ");
+
+    return `
+      <section class="hm-panel hm-condition-chart">
+        <header>
+          <h2>コンディションの過去ログ</h2>
+          <small>${escapeHtml(startDate)} - ${escapeHtml(endDate)}</small>
+        </header>
+        <div class="hm-chart-wrap">
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="コンディションの推移">
+            ${grid}
+            <line x1="${left}" y1="${top}" x2="${left}" y2="${height - bottom}" class="hm-chart-axis-line"></line>
+            <line x1="${left}" y1="${height - bottom}" x2="${width - right}" y2="${height - bottom}" class="hm-chart-axis-line"></line>
+            ${lines}
+            <text x="${left}" y="${height - 9}" class="hm-chart-axis">${escapeHtml(startDate)}</text>
+            <text x="${width - right}" y="${height - 9}" text-anchor="end" class="hm-chart-axis">${escapeHtml(endDate)}</text>
+          </svg>
+        </div>
+        <div class="hm-chart-legend">
+          ${series.map(([, label, color]) => `<span><i style="background:${color}"></i>${escapeHtml(label)}</span>`).join("")}
+        </div>
+        <p class="hm-muted">最新: ${escapeHtml(latestText)}</p>
+      </section>
+    `;
+  }
+
+  function renderJournalHistory() {
+    const entries = journalHistoryEntries(80);
+    const fields = [
+      ["best", "今日できたこと"],
+      ["learned", "気づき・学び"],
+      ["gratitude", "感謝"],
+      ["selfTalk", "自分への言葉"]
+    ];
+    return `
+      <section class="hm-panel hm-journal-history">
+        <header><h2>日誌の過去一覧</h2></header>
+        <div class="hm-journal-history-grid">
+          ${fields.map(([key, label], index) => renderJournalHistoryField(entries, key, label, index === 0)).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderJournalHistoryField(entries, key, label, open = false) {
+    const items = entries.filter((item) => item.journal[key].trim()).slice(0, 30);
+    const body = items.length
+      ? items.map((item) => `
+        <article>
+          <time>${escapeHtml(item.date)}</time>
+          <p>${escapeHtml(item.journal[key]).replaceAll("\n", "<br>")}</p>
+        </article>
+      `).join("")
+      : '<p class="hm-muted">まだ記録がありません。</p>';
+    return `
+      <details class="hm-journal-history-field" ${open ? "open" : ""}>
+        <summary>${escapeHtml(label)} <span>${items.length}件</span></summary>
+        <div>${body}</div>
+      </details>
     `;
   }
 
@@ -1669,7 +1883,7 @@
     const todayJournal = journalRecord(false);
     const recent = recentJournalSummaries(7);
     const recentText = recent.length
-      ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"}`).join("\n")
+      ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"} / 体力ログ: ${j.fitnessLog || "—"}`).join("\n")
       : "（まだ記録がありません）";
     return [
       "日誌の質を上げたいです。いっしょに振り返り方を相談させてください。",
@@ -1678,6 +1892,7 @@
       `できたこと: ${todayJournal.best || "（未記入）"}`,
       `気づき・学び: ${todayJournal.learned || "（未記入）"}`,
       `明日の一手: ${todayJournal.next || "（未記入）"}`,
+      `体力ログ: ${todayJournal.fitnessLog || "（未記入）"}`,
       "",
       "【最近の日誌】",
       recentText,
@@ -2392,6 +2607,10 @@
         journalRecord(true)[target.dataset.journalField] = target.value;
         queueSave();
       }
+      if (target.matches("[data-wellness-field]")) {
+        activeWellnessSettings()[target.dataset.wellnessField] = target.value;
+        queueSave();
+      }
       if (target.matches("[data-ai-memory-field]")) {
         activeAiMemory()[target.dataset.aiMemoryField] = target.value;
         queueSave();
@@ -2420,6 +2639,12 @@
       }
       if (target.matches("[data-coach-target]")) {
         coachTarget = target.value || coachTargetOptions(activeGoal())[0][0];
+      }
+      if (target.matches("[data-daily-field]")) {
+        renderAll();
+      }
+      if (target.matches('[data-wellness-field="stretchImageUrl"]')) {
+        renderAll();
       }
       if (target.matches("[data-routine-check]")) {
         let sourceIds = [];

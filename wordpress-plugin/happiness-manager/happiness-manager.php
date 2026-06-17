@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.43
+ * Version: 0.1.44
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.43';
+    private const VERSION = '0.1.44';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -888,7 +888,7 @@ final class Happiness_Manager_Plugin {
             return 1400;
         }
 
-        if (in_array($key, ['message', 'response', 'memo', 'best', 'learned', 'next', 'gratitude', 'selfTalk'], true)) {
+        if (in_array($key, ['message', 'response', 'memo', 'best', 'learned', 'next', 'gratitude', 'selfTalk', 'fitnessLog'], true)) {
             return 700;
         }
 
@@ -1120,6 +1120,7 @@ final class Happiness_Manager_Plugin {
             'next' => '明日の一手',
             'gratitude' => '感謝',
             'selfTalk' => '自分への言葉',
+            'fitnessLog' => '体力ログ',
             'memo' => 'メモ',
         ];
 
