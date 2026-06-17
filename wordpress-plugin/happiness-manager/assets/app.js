@@ -9,6 +9,7 @@
   }
 
   const STORAGE_FALLBACK_KEY = "hm-wp-fallback-state";
+  const COACH_HISTORY_RESPONSE_LIMIT = 120000;
   const tabs = [
     ["goals", "目標"],
     ["board", "64分解"],
@@ -752,7 +753,7 @@
       at: new Date().toISOString(),
       mode,
       message: limitText(message, 6000),
-      response: limitText(responseText, 30000),
+      response: limitText(responseText, COACH_HISTORY_RESPONSE_LIMIT),
       handoff: limitText(handoff, 4000),
       suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 12) : []
     };

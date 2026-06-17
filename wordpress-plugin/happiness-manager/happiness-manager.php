@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.44
+ * Version: 0.1.45
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.44';
+    private const VERSION = '0.1.45';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -685,7 +685,7 @@ final class Happiness_Manager_Plugin {
         }
 
         $encoded = wp_json_encode($state);
-        if (!is_string($encoded) || strlen($encoded) > 5000000) {
+        if (!is_string($encoded) || strlen($encoded) > 10000000) {
             return new WP_Error('hm_state_too_large', 'Saved data is too large.', ['status' => 413]);
         }
 
