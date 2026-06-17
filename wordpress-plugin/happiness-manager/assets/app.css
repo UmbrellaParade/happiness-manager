@@ -942,6 +942,62 @@
   font-weight: 800;
 }
 
+.hm-fitness-builder {
+  display: grid;
+  gap: 10px;
+}
+
+.hm-fitness-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.hm-fitness-head button {
+  border: 1px solid #98c7b9;
+  border-radius: var(--hm-radius);
+  background: #e8f4f0;
+  color: #1e5f4f;
+  padding: 7px 12px;
+  font-weight: 800;
+}
+
+.hm-fitness-items {
+  display: grid;
+  gap: 8px;
+}
+
+.hm-fitness-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(86px, 0.36fr) 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.hm-fitness-index {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 8px;
+  background: #eef3f8;
+  color: var(--hm-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hm-fitness-item button {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: #a33b2e;
+  width: 32px;
+  height: 32px;
+  line-height: 1;
+  font-weight: 800;
+}
+
 .hm-fitness-log span,
 .hm-stretch-menu label span {
   font-size: 13px;
@@ -1686,6 +1742,21 @@
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-stretch-image {
     max-height: 72dvh;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item {
+    grid-template-columns: 28px minmax(0, 1fr) 78px 30px;
+    gap: 6px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-index {
+    min-width: 28px;
+    min-height: 28px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item button {
+    width: 30px;
+    height: 30px;
   }
 
   .hm-coach-suggestions-head,

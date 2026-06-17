@@ -669,14 +669,28 @@
   }
 
   function blankJournalRecord() {
-    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", memo: "" };
+    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", fitnessItems: [], memo: "" };
+  }
+
+  function normalizeFitnessItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items.slice(0, 60).map((item, index) => {
+      const source = item && typeof item === "object" ? item : {};
+      return {
+        id: String(source.id || `fitness_${index + 1}`),
+        text: String(source.text || ""),
+        reps: String(source.reps || "")
+      };
+    });
   }
 
   function normalizeJournalRecord(record) {
-    const next = Object.assign(blankJournalRecord(), record && typeof record === "object" ? record : {});
-    Object.keys(blankJournalRecord()).forEach((key) => {
+    const source = record && typeof record === "object" ? record : {};
+    const next = Object.assign(blankJournalRecord(), source);
+    ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "memo"].forEach((key) => {
       next[key] = String(next[key] || "");
     });
+    next.fitnessItems = normalizeFitnessItems(source.fitnessItems);
     return next;
   }
 
@@ -719,6 +733,29 @@
     return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
   }
 
+  function fitnessItemsSummary(journal, limit = 12) {
+    return normalizeFitnessItems(journal?.fitnessItems)
+      .filter((item) => item.text.trim() || item.reps.trim())
+      .slice(0, limit)
+      .map((item) => {
+        const text = item.text.trim() || "内容未入力";
+        return item.reps.trim() ? `${text}（${item.reps.trim()}）` : text;
+      })
+      .join(" / ");
+  }
+
+  function journalHasContent(journal) {
+    const record = normalizeJournalRecord(journal);
+    return ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "memo"].some((key) => record[key].trim())
+      || Boolean(fitnessItemsSummary(record));
+  }
+
+  function fitnessLogSummary(journal, maxLength = 220) {
+    const record = normalizeJournalRecord(journal);
+    const summary = [fitnessItemsSummary(record), record.fitnessLog].filter(Boolean).join(" / ");
+    return limitText(summary, maxLength);
+  }
+
   function extractHandoff(responseText) {
     const text = String(responseText || "");
     const match = text.match(/(?:^|\n)#{1,3}\s*AI引き継ぎメモ\s*\n([\s\S]*)/);
@@ -728,14 +765,17 @@
   function recentJournalSummaries(limit = 5) {
     return Object.entries(state.journals || {})
       .filter(([key, journal]) => key.startsWith(`${state.activeProfileId}|`) && journal && typeof journal === "object")
-      .map(([key, journal]) => ({
-        date: key.split("|")[1] || "",
-        best: limitText(journal.best, 220),
-        learned: limitText(journal.learned, 220),
-        next: limitText(journal.next, 220),
-        memo: limitText(journal.memo, 220),
-        fitnessLog: limitText(journal.fitnessLog, 220)
-      }))
+      .map(([key, journal]) => {
+        const record = normalizeJournalRecord(journal);
+        return {
+          date: key.split("|")[1] || "",
+          best: limitText(record.best, 220),
+          learned: limitText(record.learned, 220),
+          next: limitText(record.next, 220),
+          memo: limitText(record.memo, 220),
+          fitnessLog: fitnessLogSummary(record, 220)
+        };
+      })
       .filter((item) => item.best || item.learned || item.next || item.memo || item.fitnessLog)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
@@ -748,7 +788,7 @@
         date: key.split("|")[1] || "",
         journal: normalizeJournalRecord(journal)
       }))
-      .filter((item) => Object.values(item.journal).some((value) => String(value || "").trim()))
+      .filter((item) => journalHasContent(item.journal))
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
   }
@@ -1676,15 +1716,42 @@
       <div class="hm-journal-record-grid">
         <section class="hm-journal-group">
           <h3>体力ログ</h3>
-          <label class="hm-fitness-log">
-            <span>筋トレ・歩数・体調メモ</span>
-            <textarea data-journal-field="fitnessLog" data-autosize placeholder="例: 腕立て10回、スクワット20回、肩まわりストレッチ">${escapeHtml(journal.fitnessLog)}</textarea>
-          </label>
+          ${renderFitnessLog(journal)}
         </section>
         <section class="hm-journal-group hm-journal-stretch-group">
           <h3>ストレッチメニュー</h3>
           ${renderStretchMenu(wellness)}
         </section>
+      </div>
+    `;
+  }
+
+  function renderFitnessLog(journal) {
+    const items = normalizeFitnessItems(journal.fitnessItems);
+    return `
+      <div class="hm-fitness-builder">
+        <div class="hm-fitness-head">
+          <strong>やること</strong>
+          <button type="button" data-add-fitness-item>追加</button>
+        </div>
+        <div class="hm-fitness-items">
+          ${items.length ? items.map((item, index) => renderFitnessItem(item, index)).join("") : '<p class="hm-muted">まだ追加されていません。</p>'}
+        </div>
+        <label class="hm-fitness-log">
+          <span>筋トレ・歩数・体調メモ</span>
+          <textarea data-journal-field="fitnessLog" data-autosize placeholder="例: 肩まわりが軽い。夜は少し疲れあり。">${escapeHtml(journal.fitnessLog)}</textarea>
+        </label>
+      </div>
+    `;
+  }
+
+  function renderFitnessItem(item, index) {
+    return `
+      <div class="hm-fitness-item">
+        <span class="hm-fitness-index">${index + 1}</span>
+        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="text" value="${escapeHtml(item.text)}" placeholder="内容" aria-label="体力ログの内容">
+        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="回数" aria-label="体力ログの回数">
+        <button type="button" data-del-fitness-item="${escapeHtml(item.id)}" title="削除" aria-label="削除">×</button>
       </div>
     `;
   }
@@ -2021,6 +2088,7 @@
       ].join("\n");
     }
     const todayJournal = journalRecord(false);
+    const todayFitness = fitnessLogSummary(todayJournal, 700);
     const recent = recentJournalSummaries(7);
     const recentText = recent.length
       ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"} / 体力ログ: ${j.fitnessLog || "—"}`).join("\n")
@@ -2032,7 +2100,7 @@
       `できたこと: ${todayJournal.best || "（未記入）"}`,
       `気づき・学び: ${todayJournal.learned || "（未記入）"}`,
       `明日の一手: ${todayJournal.next || "（未記入）"}`,
-      `体力ログ: ${todayJournal.fitnessLog || "（未記入）"}`,
+      `体力ログ: ${todayFitness || "（未記入）"}`,
       "",
       "【最近の日誌】",
       recentText,
@@ -2425,6 +2493,30 @@
         return;
       }
 
+      if (event.target.closest("[data-add-fitness-item]")) {
+        const journal = journalRecord(true);
+        journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
+        const item = { id: uid("fitness"), text: "", reps: "" };
+        journal.fitnessItems.push(item);
+        queueSave();
+        renderAll();
+        window.setTimeout(() => {
+          root.querySelector(`[data-fitness-item-id="${item.id}"][data-fitness-item-field="text"]`)?.focus();
+        }, 0);
+        return;
+      }
+
+      const delFitness = event.target.closest("[data-del-fitness-item]");
+      if (delFitness) {
+        event.preventDefault();
+        const journal = journalRecord(true);
+        const itemId = delFitness.dataset.delFitnessItem;
+        journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems).filter((item) => item.id !== itemId);
+        queueSave();
+        renderAll();
+        return;
+      }
+
       const themeButton = event.target.closest("[data-theme-index]");
       if (themeButton) {
         selectedThemeIndex = Number(themeButton.dataset.themeIndex);
@@ -2770,6 +2862,15 @@
       if (target.matches("[data-journal-field]")) {
         journalRecord(true)[target.dataset.journalField] = target.value;
         queueSave();
+      }
+      if (target.matches("[data-fitness-item-field]")) {
+        const journal = journalRecord(true);
+        journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
+        const item = journal.fitnessItems.find((entry) => entry.id === target.dataset.fitnessItemId);
+        if (item) {
+          item[target.dataset.fitnessItemField === "reps" ? "reps" : "text"] = target.value;
+          queueSave();
+        }
       }
       if (target.matches("[data-wellness-field]")) {
         activeWellnessSettings()[target.dataset.wellnessField] = target.value;

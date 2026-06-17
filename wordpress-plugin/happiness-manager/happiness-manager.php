@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.49
+ * Version: 0.1.50
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.49';
+    private const VERSION = '0.1.50';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -1109,6 +1109,18 @@ final class Happiness_Manager_Plugin {
             if (is_string($value) && trim($value) !== '') {
                 return true;
             }
+            if (is_array($value)) {
+                foreach ($value as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $text = trim((string) ($item['text'] ?? ''));
+                    $reps = trim((string) ($item['reps'] ?? ''));
+                    if ($text !== '' || $reps !== '') {
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
@@ -1127,6 +1139,23 @@ final class Happiness_Manager_Plugin {
         $lines = [];
         foreach ($labels as $key => $label) {
             $value = isset($journal[$key]) ? trim((string) $journal[$key]) : '';
+            if ($key === 'fitnessLog' && !empty($journal['fitnessItems']) && is_array($journal['fitnessItems'])) {
+                $fitness_lines = [];
+                foreach ($journal['fitnessItems'] as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $text = trim((string) ($item['text'] ?? ''));
+                    $reps = trim((string) ($item['reps'] ?? ''));
+                    if ($text === '' && $reps === '') {
+                        continue;
+                    }
+                    $fitness_lines[] = $reps !== '' ? sprintf('%s（%s）', $text !== '' ? $text : '内容未入力', $reps) : $text;
+                }
+                if ($fitness_lines) {
+                    $value = trim(implode("\n", $fitness_lines) . ($value !== '' ? "\n\n" . $value : ''));
+                }
+            }
             if ($value !== '') {
                 $lines[] = "## {$label}\n{$value}";
             }
