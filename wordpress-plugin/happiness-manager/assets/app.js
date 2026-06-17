@@ -10,6 +10,7 @@
 
   const STORAGE_FALLBACK_KEY = "hm-wp-fallback-state";
   const COACH_HISTORY_RESPONSE_LIMIT = 120000;
+  const OPEN_WINDOW_RING_ORDER = [0, 1, 2, 7, null, 3, 6, 5, 4];
   const tabs = [
     ["goals", "目標"],
     ["board", "64分解"],
@@ -65,6 +66,10 @@
 
   function uid(prefix) {
     return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function openWindowOrder(centerItem) {
+    return OPEN_WINDOW_RING_ORDER.map((item) => item === null ? centerItem : item);
   }
 
   function blankAction() {
@@ -1381,7 +1386,7 @@
   }
 
   function renderEditBoard(goal, themes) {
-    const map = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+    const map = openWindowOrder("center");
     const selected = themes[selectedThemeIndex] || themes[0];
     return `
       <div class="hm-board-edit">
@@ -1444,7 +1449,7 @@
   function renderSelectedThemeWindow(themes, themeIndex) {
     const theme = themes[themeIndex] || themes[0];
     if (!theme) return "";
-    const order = [0, 1, 2, 3, "theme", 4, 5, 6, 7];
+    const order = openWindowOrder("theme");
     return `
       <div class="hm-selected-theme-window">
         <div class="hm-selected-theme-window-head">
@@ -1465,7 +1470,7 @@
   }
 
   function renderOpenBoard(goal, themes) {
-    const blockOrder = [0, 1, 2, 3, "center", 4, 5, 6, 7];
+    const blockOrder = openWindowOrder("center");
     return `
       <div class="hm-open-scroll">
         <div class="hm-open-board">
@@ -1476,7 +1481,7 @@
   }
 
   function renderCenterBlock(goal, themes) {
-    const order = [0, 1, 2, 3, "goal", 4, 5, 6, 7];
+    const order = openWindowOrder("goal");
     return `<div class="hm-open-block center">${order.map((item) => {
       if (item === "goal") return `<div class="hm-open-cell center"><b>${escapeHtml(boardCenterTitle(goal))}</b></div>`;
       const theme = themes[item];
@@ -1486,7 +1491,7 @@
 
   function renderActionBlock(goal, themes, themeIndex) {
     const theme = themes[themeIndex];
-    const order = [0, 1, 2, 3, "theme", 4, 5, 6, 7];
+    const order = openWindowOrder("theme");
     return `<div class="hm-open-block">${order.map((item) => {
       if (item === "theme") return `<div class="hm-open-cell center"><small>テーマ ${themeIndex + 1}</small><input data-theme-title="${themeIndex}" value="${escapeHtml(theme.title)}" placeholder="テーマ"></div>`;
       const action = theme.actions[item];
