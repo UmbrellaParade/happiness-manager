@@ -916,7 +916,14 @@
 
 .hm-journal-wellness-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.hm-journal-music-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -1674,6 +1681,7 @@
   .hm-perspectives,
   .hm-journal-record-grid,
   .hm-journal-wellness-grid,
+  .hm-journal-music-grid,
   .hm-journal-insights,
   .hm-board-edit {
     grid-template-columns: 1fr;

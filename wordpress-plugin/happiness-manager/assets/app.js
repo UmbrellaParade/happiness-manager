@@ -23,6 +23,7 @@
     ["today", "記録"],
     ["routine", "ルーティーン"],
     ["wellness", "体力・ストレッチ"],
+    ["music", "音楽ログ"],
     ["history", "過去ログ"]
   ];
   const urlParams = new URLSearchParams(window.location.search);
@@ -1780,6 +1781,7 @@
     if (!journalSections.some(([key]) => key === journalSection)) journalSection = "today";
     if (journalSection === "routine") return renderJournalRoutine(daily, items);
     if (journalSection === "wellness") return renderJournalWellness(journal, wellness);
+    if (journalSection === "music") return renderJournalMusic(journal);
     if (journalSection === "history") return renderJournalHistoryPanel();
     return renderJournalToday(daily, journal, todayItems);
   }
@@ -1834,13 +1836,20 @@
           <h3>体力ログ</h3>
           ${renderFitnessLog(journal)}
         </section>
-        <section class="hm-journal-group">
-          <h3>音楽ログ</h3>
-          ${renderMusicLog(journal)}
-        </section>
         <section class="hm-journal-group hm-journal-stretch-group">
           <h3>ストレッチメニュー</h3>
           ${renderStretchMenu(wellness)}
+        </section>
+      </div>
+    `;
+  }
+
+  function renderJournalMusic(journal) {
+    return `
+      <div class="hm-journal-music-grid">
+        <section class="hm-journal-group">
+          <h3>音楽ログ</h3>
+          ${renderMusicLog(journal)}
         </section>
         <section class="hm-journal-group hm-catchimelo-panel">
           <header>
