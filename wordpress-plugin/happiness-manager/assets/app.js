@@ -621,7 +621,7 @@
   }
 
   function blankDailyRecord() {
-    return { mood: 3, energy: 3, load: 3, focus: 3, checks: {} };
+    return { mood: 3, energy: 3, load: 3, focus: 3, checks: {}, routineSnapshot: null, routineSnapshotAt: "", routineSnapshotSignature: "" };
   }
 
   function dailyValue(value) {
@@ -641,12 +641,19 @@
       energy: dailyValue(source.energy),
       load: dailyValue(source.load),
       focus: dailyValue(source.focus),
-      checks: plainObject(source.checks)
+      checks: plainObject(source.checks),
+      routineSnapshot: Array.isArray(source.routineSnapshot) ? normalizeRoutineSnapshot(source.routineSnapshot) : null,
+      routineSnapshotAt: String(source.routineSnapshotAt || ""),
+      routineSnapshotSignature: String(source.routineSnapshotSignature || "")
     };
   }
 
   function dailyRecord(forWrite = false) {
-    const key = dayKey();
+    return dailyRecordForDate(activeDate, forWrite);
+  }
+
+  function dailyRecordForDate(date, forWrite = false) {
+    const key = dayKey(date);
     const record = normalizeDailyRecord(state.daily[key] || blankDailyRecord());
     if (forWrite) {
       state.daily[key] = record;
@@ -1030,6 +1037,71 @@
     return String(text || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("ja-JP");
   }
 
+  function routineTextCheckId(text) {
+    const key = routineKey(text);
+    return key ? `routine-text:${key}` : "";
+  }
+
+  function uniqueStrings(values) {
+    return Array.from(new Set((Array.isArray(values) ? values : []).map((value) => String(value || "").trim()).filter(Boolean)));
+  }
+
+  function normalizeRoutineSnapshot(items) {
+    return (Array.isArray(items) ? items : []).slice(0, 120).map((item) => {
+      const text = String(item && item.text ? item.text : "").trim();
+      const sourceIds = uniqueStrings(item && item.sourceIds);
+      const textCheckId = routineTextCheckId(text);
+      if (textCheckId && !sourceIds.includes(textCheckId)) sourceIds.push(textCheckId);
+      return {
+        id: String(item && item.id ? item.id : (sourceIds[0] || uid("routine"))),
+        text,
+        goalTitle: String(item && item.goalTitle ? item.goalTitle : "目標"),
+        themeTitle: String(item && item.themeTitle ? item.themeTitle : "ルーティン"),
+        sourceIds
+      };
+    }).filter((item) => item.text);
+  }
+
+  function routineSnapshotSignature(items) {
+    return JSON.stringify(normalizeRoutineSnapshot(items).map((item) => ({
+      text: item.text,
+      goalTitle: item.goalTitle,
+      themeTitle: item.themeTitle,
+      sourceIds: item.sourceIds
+    })));
+  }
+
+  function ensureRoutineSnapshot(daily, items, forceUpdate = false, markDirty = true) {
+    const snapshot = normalizeRoutineSnapshot(items);
+    const signature = routineSnapshotSignature(snapshot);
+    const hasSnapshot = Array.isArray(daily.routineSnapshot);
+    if (forceUpdate || !hasSnapshot) {
+      if (daily.routineSnapshotSignature !== signature) {
+        daily.routineSnapshot = snapshot;
+        daily.routineSnapshotAt = new Date().toISOString();
+        daily.routineSnapshotSignature = signature;
+        if (markDirty) window.setTimeout(queueSave, 0);
+      }
+    }
+    return normalizeRoutineSnapshot(daily.routineSnapshot);
+  }
+
+  function routineItemsForDate(daily) {
+    const latest = routineItems();
+    if (activeDate >= today()) {
+      return ensureRoutineSnapshot(daily, latest, true);
+    }
+    if (Array.isArray(daily.routineSnapshot)) {
+      return normalizeRoutineSnapshot(daily.routineSnapshot);
+    }
+    return ensureRoutineSnapshot(daily, latest, false);
+  }
+
+  function refreshTodayRoutineSnapshotBeforeSave() {
+    const todayRecord = dailyRecordForDate(today(), true);
+    ensureRoutineSnapshot(todayRecord, routineItems(), true, false);
+  }
+
   function routineItems() {
     const byText = new Map();
     function collectFromThemes(goal, themes, scope, prefix = "") {
@@ -1041,6 +1113,7 @@
           const sourceId = `action:${goal.id}:${id}`;
           const text = action.text.trim();
           const key = routineKey(text) || sourceId;
+          const textCheckId = routineTextCheckId(text);
           const source = {
             id: sourceId,
             goalTitle: goal.title || "目標",
@@ -1049,6 +1122,8 @@
           if (byText.has(key)) {
             const item = byText.get(key);
             item.sourceIds.push(sourceId);
+            if (textCheckId) item.sourceIds.push(textCheckId);
+            item.sourceIds = uniqueStrings(item.sourceIds);
             item.sources.push(source);
           } else {
             byText.set(key, {
@@ -1056,7 +1131,7 @@
               text,
               goalTitle: source.goalTitle,
               themeTitle: source.themeTitle,
-              sourceIds: [sourceId],
+              sourceIds: uniqueStrings([sourceId, textCheckId]),
               sources: [source]
             });
           }
@@ -1171,6 +1246,7 @@
         renderAll(false);
         return;
       }
+      refreshTodayRoutineSnapshotBeforeSave();
       const findings = corruptedStateFindings(state);
       if (findings.length >= 3) {
         saveLocked = true;
@@ -1519,10 +1595,10 @@
   }
 
   function renderJournal() {
-    const daily = dailyRecord();
+    const daily = dailyRecord(true);
     const journal = journalRecord();
     const wellness = activeWellnessSettings();
-    const items = routineItems();
+    const items = routineItemsForDate(daily);
     const todayItems = todayActionItems();
     return `
       <div class="hm-grid hm-grid-2">
