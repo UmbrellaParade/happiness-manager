@@ -19,6 +19,12 @@
     ["archive", "過去目標"],
     ["backup", "保存"]
   ];
+  const journalSections = [
+    ["today", "記録"],
+    ["routine", "ルーティーン"],
+    ["wellness", "体力・ストレッチ"],
+    ["history", "過去ログ"]
+  ];
   const urlParams = new URLSearchParams(window.location.search);
   const rootInitialTab = roots[0]?.dataset.initialTab || "";
   const requestedTab = urlParams.get("hm_tab") || rootInitialTab || "goals";
@@ -30,6 +36,7 @@
   let selectedThemeIndex = 0;
   let boardScope = "long";
   let boardPath = [];
+  let journalSection = "today";
   let coachArea = "goal";
   let coachTarget = "goal.long";
   let saveTimer = null;
@@ -1601,31 +1608,44 @@
     const items = routineItemsForDate(daily);
     const todayItems = todayActionItems();
     return `
-      <div class="hm-grid hm-grid-2">
-        <section class="hm-panel">
-          <header><h2>コンディション</h2></header>
+      <section class="hm-panel hm-journal-shell">
+        <header><h2>日誌</h2></header>
+        <div class="hm-journal-tabs">
+          ${journalSections.map(([key, label]) => `<button type="button" data-journal-section="${key}" class="${journalSection === key ? "active" : ""}">${label}</button>`).join("")}
+        </div>
+        <div class="hm-journal-section">
+          ${renderJournalSection(daily, journal, wellness, items, todayItems)}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderJournalSection(daily, journal, wellness, items, todayItems) {
+    if (!journalSections.some(([key]) => key === journalSection)) journalSection = "today";
+    if (journalSection === "routine") return renderJournalRoutine(daily, items);
+    if (journalSection === "wellness") return renderJournalWellness(journal, wellness);
+    if (journalSection === "history") return renderJournalHistoryPanel();
+    return renderJournalToday(daily, journal, todayItems);
+  }
+
+  function renderJournalToday(daily, journal, todayItems) {
+    return `
+      <div class="hm-journal-record-grid">
+        <section class="hm-journal-group">
+          <h3>コンディション</h3>
           ${slider("mood", "気分", daily.mood)}
           ${slider("energy", "体力", daily.energy)}
           ${slider("load", "負荷", daily.load)}
           ${slider("focus", "集中", daily.focus)}
-          <h3>ルーティン</h3>
-          ${items.length ? items.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
           <h3>今日やること</h3>
           ${todayItems.length ? todayItems.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">前日の「明日の一手」や、下で追加した項目がここに表示されます。</p>'}
           <div class="hm-today-add">
             <input type="text" data-today-task-input placeholder="今日やることを追加" aria-label="今日やることを追加">
             <button type="button" data-add-today-task>追加</button>
           </div>
-          <h3>体力ログ</h3>
-          <label class="hm-fitness-log">
-            <span>筋トレ・歩数・体調メモ</span>
-            <textarea data-journal-field="fitnessLog" data-autosize placeholder="例: 腕立て10回、スクワット20回、肩まわりストレッチ">${escapeHtml(journal.fitnessLog)}</textarea>
-          </label>
-          <h3>ストレッチメニュー</h3>
-          ${renderStretchMenu(wellness)}
         </section>
-        <section class="hm-panel">
-          <header><h2>日誌</h2></header>
+        <section class="hm-journal-group">
+          <h3>日誌</h3>
           <div class="hm-form-grid">
             ${journalField("best", "今日できたこと", journal.best)}
             ${journalField("learned", "気づき・学び", journal.learned)}
@@ -1639,6 +1659,38 @@
           </div>
         </section>
       </div>
+    `;
+  }
+
+  function renderJournalRoutine(daily, items) {
+    return `
+      <section class="hm-journal-group">
+        <h3>ルーティーン</h3>
+        ${items.length ? items.map((item) => renderRoutineCheck(item, daily)).join("") : '<p class="hm-muted">64分解で毎日の行動を選ぶと表示されます。</p>'}
+      </section>
+    `;
+  }
+
+  function renderJournalWellness(journal, wellness) {
+    return `
+      <div class="hm-journal-record-grid">
+        <section class="hm-journal-group">
+          <h3>体力ログ</h3>
+          <label class="hm-fitness-log">
+            <span>筋トレ・歩数・体調メモ</span>
+            <textarea data-journal-field="fitnessLog" data-autosize placeholder="例: 腕立て10回、スクワット20回、肩まわりストレッチ">${escapeHtml(journal.fitnessLog)}</textarea>
+          </label>
+        </section>
+        <section class="hm-journal-group hm-journal-stretch-group">
+          <h3>ストレッチメニュー</h3>
+          ${renderStretchMenu(wellness)}
+        </section>
+      </div>
+    `;
+  }
+
+  function renderJournalHistoryPanel() {
+    return `
       <div class="hm-journal-insights">
         ${renderConditionGraph()}
         ${renderJournalHistory()}
@@ -1661,19 +1713,19 @@
     const imageUrl = safeImageUrl(wellness.stretchImageUrl);
     const hasRawUrl = String(wellness.stretchImageUrl || "").trim();
     const preview = imageUrl
-      ? `<a class="hm-stretch-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">画像を別タブで開く</a><img class="hm-stretch-image" src="${escapeHtml(imageUrl)}" alt="ストレッチメニュー">`
-      : `<p class="hm-muted">${hasRawUrl ? "画像URLを確認してください。" : "WordPressメディアなどの画像URLを入れると、ここで見られます。"}</p>`;
+      ? `<div class="hm-stretch-preview"><img class="hm-stretch-image" src="${escapeHtml(imageUrl)}" alt="ストレッチメニュー"><a class="hm-stretch-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">画像を別タブで開く</a></div>`
+      : `<div class="hm-stretch-preview hm-stretch-empty"><p class="hm-muted">${hasRawUrl ? "画像URLを確認してください。" : "WordPressメディアなどの画像URLを入れると、ここで見られます。"}</p></div>`;
     return `
       <div class="hm-stretch-menu">
-        <label>
-          <span>メニュー表の画像URL</span>
-          <input type="url" data-wellness-field="stretchImageUrl" value="${escapeHtml(wellness.stretchImageUrl)}" placeholder="https://...">
-        </label>
+        ${preview}
         <label>
           <span>メモ</span>
           <textarea data-wellness-field="stretchMemo" data-autosize placeholder="例: 朝は首肩、夜は股関節を優先">${escapeHtml(wellness.stretchMemo)}</textarea>
         </label>
-        ${preview}
+        <label>
+          <span>メニュー表の画像URL</span>
+          <input type="url" data-wellness-field="stretchImageUrl" value="${escapeHtml(wellness.stretchImageUrl)}" placeholder="https://...">
+        </label>
       </div>
     `;
   }
@@ -1688,8 +1740,8 @@
     ];
     if (!history.length) {
       return `
-        <section class="hm-panel hm-condition-chart">
-          <header><h2>コンディションの過去ログ</h2></header>
+        <section class="hm-journal-group hm-condition-chart">
+          <header><h3>コンディションの過去ログ</h3></header>
           <p class="hm-muted">コンディションを記録すると、ここにグラフが表示されます。</p>
         </section>
       `;
@@ -1720,9 +1772,9 @@
     const latestText = series.map(([key, label]) => `${label}${latest[key]}`).join(" / ");
 
     return `
-      <section class="hm-panel hm-condition-chart">
+      <section class="hm-journal-group hm-condition-chart">
         <header>
-          <h2>コンディションの過去ログ</h2>
+          <h3>コンディションの過去ログ</h3>
           <small>${escapeHtml(startDate)} - ${escapeHtml(endDate)}</small>
         </header>
         <div class="hm-chart-wrap">
@@ -1752,8 +1804,8 @@
       ["selfTalk", "自分への言葉"]
     ];
     return `
-      <section class="hm-panel hm-journal-history">
-        <header><h2>日誌の過去一覧</h2></header>
+      <section class="hm-journal-group hm-journal-history">
+        <header><h3>日誌の過去一覧</h3></header>
         <div class="hm-journal-history-grid">
           ${fields.map(([key, label], index) => renderJournalHistoryField(entries, key, label, index === 0)).join("")}
         </div>
@@ -2292,6 +2344,13 @@
         activeTab = tabButton.dataset.tab;
         renderAll();
         scheduleScrollToAppTitle(root, "smooth");
+        return;
+      }
+
+      const journalSectionButton = event.target.closest("[data-journal-section]");
+      if (journalSectionButton) {
+        journalSection = journalSectionButton.dataset.journalSection || "today";
+        renderAll();
         return;
       }
 

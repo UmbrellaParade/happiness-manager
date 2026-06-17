@@ -55,7 +55,7 @@
   color: var(--hm-ink);
 }
 
-.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result, .hm-stretch-menu, .hm-condition-chart, .hm-journal-history, .hm-journal-history-field) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
+.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result, .hm-stretch-menu, .hm-stretch-preview, .hm-condition-chart, .hm-journal-shell, .hm-journal-group, .hm-journal-history, .hm-journal-history-field) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
   color: var(--hm-ink) !important;
   -webkit-text-fill-color: var(--hm-ink) !important;
   opacity: 1 !important;
@@ -874,6 +874,68 @@
   padding: 8px 14px;
 }
 
+.hm-journal-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.hm-journal-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.hm-journal-tabs button {
+  flex: 0 0 auto;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  color: var(--hm-ink);
+  padding: 8px 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.hm-journal-tabs button.active {
+  border-color: #98c7b9;
+  background: #e8f4f0;
+  color: #1e5f4f;
+}
+
+.hm-journal-section {
+  min-width: 0;
+}
+
+.hm-journal-record-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.hm-journal-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 12px;
+}
+
+.hm-journal-group h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.hm-journal-group header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
 .hm-fitness-log {
   display: grid;
   gap: 6px;
@@ -904,6 +966,21 @@
   min-height: 78px;
 }
 
+.hm-stretch-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.hm-stretch-empty {
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed #c8d4e2;
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 16px;
+  text-align: center;
+}
+
 .hm-stretch-link {
   width: fit-content;
   border: 1px solid #98c7b9;
@@ -917,7 +994,7 @@
 
 .hm-stretch-image {
   width: 100%;
-  max-height: 420px;
+  max-height: min(68dvh, 620px);
   object-fit: contain;
   border: 1px solid var(--hm-line);
   border-radius: var(--hm-radius);
@@ -1479,6 +1556,7 @@
   .hm-grid-2,
   .hm-form-grid,
   .hm-perspectives,
+  .hm-journal-record-grid,
   .hm-journal-insights,
   .hm-board-edit {
     grid-template-columns: 1fr;
@@ -1607,7 +1685,7 @@
   }
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-stretch-image {
-    max-height: 62dvh;
+    max-height: 72dvh;
   }
 
   .hm-coach-suggestions-head,
