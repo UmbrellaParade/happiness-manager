@@ -669,7 +669,7 @@
   }
 
   function blankJournalRecord() {
-    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", fitnessItems: [], fitnessSeeded: false, memo: "" };
+    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", fitnessItems: [], fitnessSeeded: false, musicLog: "", musicItems: [], musicSeeded: false, memo: "" };
   }
 
   function normalizeFitnessItems(items) {
@@ -685,14 +685,29 @@
     });
   }
 
+  function normalizeMusicItems(items) {
+    if (!Array.isArray(items)) return [];
+    return items.slice(0, 80).map((item, index) => {
+      const source = item && typeof item === "object" ? item : {};
+      return {
+        id: String(source.id || `music_${index + 1}`),
+        text: String(source.text || ""),
+        reps: String(source.reps || ""),
+        actualReps: String(source.actualReps || "")
+      };
+    });
+  }
+
   function normalizeJournalRecord(record) {
     const source = record && typeof record === "object" ? record : {};
     const next = Object.assign(blankJournalRecord(), source);
-    ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "memo"].forEach((key) => {
+    ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "musicLog", "memo"].forEach((key) => {
       next[key] = String(next[key] || "");
     });
     next.fitnessItems = normalizeFitnessItems(source.fitnessItems);
     next.fitnessSeeded = Boolean(source.fitnessSeeded);
+    next.musicItems = normalizeMusicItems(source.musicItems);
+    next.musicSeeded = Boolean(source.musicSeeded);
     return next;
   }
 
@@ -727,6 +742,40 @@
     const record = journalRecord(true);
     record.fitnessItems = seeded;
     record.fitnessSeeded = true;
+    queueSave();
+  }
+
+  function latestPriorMusicItems(beforeDate) {
+    const prefix = `${state.activeProfileId}|`;
+    let bestDate = "";
+    let bestItems = [];
+    Object.keys(state.journals || {}).forEach((key) => {
+      if (!key.startsWith(prefix)) return;
+      const date = key.split("|")[1] || "";
+      if (!date || date >= beforeDate) return;
+      const items = normalizeMusicItems((state.journals[key] || {}).musicItems);
+      if (!items.length) return;
+      if (date > bestDate) {
+        bestDate = date;
+        bestItems = items;
+      }
+    });
+    return bestItems
+      .filter((item) => item.text.trim() || item.reps.trim())
+      .map((item) => ({ id: uid("music"), text: item.text, reps: item.reps, actualReps: "" }));
+  }
+
+  function maybeSeedMusicItems() {
+    if (!state || activeDate < today()) return;
+    const key = dayKey();
+    const existing = state.journals[key];
+    if (existing && existing.musicSeeded) return;
+    if (existing && normalizeMusicItems(existing.musicItems).length) return;
+    const seeded = latestPriorMusicItems(activeDate);
+    if (!seeded.length) return;
+    const record = journalRecord(true);
+    record.musicItems = seeded;
+    record.musicSeeded = true;
     queueSave();
   }
 
@@ -784,15 +833,37 @@
       .join(" / ");
   }
 
+  function musicItemsSummary(journal, limit = 12) {
+    return normalizeMusicItems(journal?.musicItems)
+      .filter((item) => item.text.trim() || item.reps.trim() || item.actualReps.trim())
+      .slice(0, limit)
+      .map((item) => {
+        const text = item.text.trim() || "内容未入力";
+        const details = [
+          item.reps.trim() ? `予定:${item.reps.trim()}` : "",
+          item.actualReps.trim() ? `実際:${item.actualReps.trim()}` : ""
+        ].filter(Boolean);
+        return details.length ? `${text}（${details.join(" / ")}）` : text;
+      })
+      .join(" / ");
+  }
+
   function journalHasContent(journal) {
     const record = normalizeJournalRecord(journal);
-    return ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "memo"].some((key) => record[key].trim())
-      || Boolean(fitnessItemsSummary(record));
+    return ["best", "learned", "next", "gratitude", "selfTalk", "fitnessLog", "musicLog", "memo"].some((key) => record[key].trim())
+      || Boolean(fitnessItemsSummary(record))
+      || Boolean(musicItemsSummary(record));
   }
 
   function fitnessLogSummary(journal, maxLength = 220) {
     const record = normalizeJournalRecord(journal);
     const summary = [fitnessItemsSummary(record), record.fitnessLog].filter(Boolean).join(" / ");
+    return limitText(summary, maxLength);
+  }
+
+  function musicLogSummary(journal, maxLength = 220) {
+    const record = normalizeJournalRecord(journal);
+    const summary = [musicItemsSummary(record), record.musicLog].filter(Boolean).join(" / ");
     return limitText(summary, maxLength);
   }
 
@@ -813,10 +884,11 @@
           learned: limitText(record.learned, 220),
           next: limitText(record.next, 220),
           memo: limitText(record.memo, 220),
-          fitnessLog: fitnessLogSummary(record, 220)
+          fitnessLog: fitnessLogSummary(record, 220),
+          musicLog: musicLogSummary(record, 220)
         };
       })
-      .filter((item) => item.best || item.learned || item.next || item.memo || item.fitnessLog)
+      .filter((item) => item.best || item.learned || item.next || item.memo || item.fitnessLog || item.musicLog)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
   }
@@ -1311,7 +1383,10 @@
         : `読み込みに失敗したため保存を止めました: ${error.message}`;
       saveTone = "error";
     }
-    if (!saveLocked) maybeSeedFitnessItems();
+    if (!saveLocked) {
+      maybeSeedFitnessItems();
+      maybeSeedMusicItems();
+    }
     renderAll();
     scrollAllToAppTitle("auto");
   }
@@ -1684,7 +1759,7 @@
 
   function renderJournal() {
     const daily = dailyRecord(true);
-    const journal = journalRecord();
+    const journal = journalRecord(true);
     const wellness = activeWellnessSettings();
     const items = routineItemsForDate(daily);
     const todayItems = todayActionItems();
@@ -1754,14 +1829,25 @@
 
   function renderJournalWellness(journal, wellness) {
     return `
-      <div class="hm-journal-record-grid">
+      <div class="hm-journal-wellness-grid">
         <section class="hm-journal-group">
           <h3>体力ログ</h3>
           ${renderFitnessLog(journal)}
         </section>
+        <section class="hm-journal-group">
+          <h3>音楽ログ</h3>
+          ${renderMusicLog(journal)}
+        </section>
         <section class="hm-journal-group hm-journal-stretch-group">
           <h3>ストレッチメニュー</h3>
           ${renderStretchMenu(wellness)}
+        </section>
+        <section class="hm-journal-group hm-catchimelo-panel">
+          <header>
+            <h3>倍音・リズム</h3>
+            <a href="${escapeHtml(catchimeloUrl())}" target="_blank" rel="noopener">別タブで開く</a>
+          </header>
+          <iframe class="hm-catchimelo-frame" src="${escapeHtml(catchimeloUrl())}" title="キャチメロ体質養成トレーナー" loading="lazy" allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin"></iframe>
         </section>
       </div>
     `;
@@ -1806,6 +1892,51 @@
         </div>
       </div>
     `;
+  }
+
+  function renderMusicLog(journal) {
+    const items = normalizeMusicItems(journal.musicItems);
+    return `
+      <div class="hm-fitness-builder hm-music-builder">
+        <div class="hm-fitness-head">
+          <strong>やること</strong>
+          <button type="button" data-add-music-item>追加</button>
+        </div>
+        <div class="hm-fitness-items">
+          ${items.length ? items.map((item, index) => renderMusicItem(item, index)).join("") : '<p class="hm-muted">まだ追加されていません。今日追加した内容は明日にも引き継がれます。</p>'}
+        </div>
+        <label class="hm-fitness-log">
+          <span>音楽メモ</span>
+          <textarea data-journal-field="musicLog" data-autosize placeholder="例: 倍音フレーズ5分、リズム3番をBPM90で練習">${escapeHtml(journal.musicLog)}</textarea>
+        </label>
+      </div>
+    `;
+  }
+
+  function renderMusicItem(item, index) {
+    return `
+      <div class="hm-fitness-item hm-music-item">
+        <div class="hm-fitness-item-head">
+          <span class="hm-fitness-index">${index + 1}</span>
+          <input type="text" class="hm-fitness-text" data-music-item-id="${escapeHtml(item.id)}" data-music-item-field="text" value="${escapeHtml(item.text)}" placeholder="やる内容" aria-label="音楽ログの内容">
+          <button type="button" class="hm-fitness-del" data-del-music-item="${escapeHtml(item.id)}" title="削除" aria-label="削除">×</button>
+        </div>
+        <div class="hm-fitness-nums">
+          <label class="hm-fitness-num">
+            <span>目標</span>
+            <input type="text" data-music-item-id="${escapeHtml(item.id)}" data-music-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="例: 5分" aria-label="音楽ログの目標">
+          </label>
+          <label class="hm-fitness-num">
+            <span>達成</span>
+            <input type="text" data-music-item-id="${escapeHtml(item.id)}" data-music-item-field="actualReps" value="${escapeHtml(item.actualReps)}" placeholder="例: 3分" aria-label="音楽ログの達成">
+          </label>
+        </div>
+      </div>
+    `;
+  }
+
+  function catchimeloUrl() {
+    return config.catchimeloUrl || "https://umbrellaparade.github.io/catchimelo-trainer/";
   }
 
   function renderJournalHistoryPanel() {
@@ -2141,9 +2272,10 @@
     }
     const todayJournal = journalRecord(false);
     const todayFitness = fitnessLogSummary(todayJournal, 700);
+    const todayMusic = musicLogSummary(todayJournal, 700);
     const recent = recentJournalSummaries(7);
     const recentText = recent.length
-      ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"} / 体力ログ: ${j.fitnessLog || "—"}`).join("\n")
+      ? recent.map((j) => `・${j.date}｜できたこと: ${j.best || "—"} / 学び: ${j.learned || "—"} / 明日: ${j.next || "—"} / 体力ログ: ${j.fitnessLog || "—"} / 音楽ログ: ${j.musicLog || "—"}`).join("\n")
       : "（まだ記録がありません）";
     return [
       "日誌の質を上げたいです。いっしょに振り返り方を相談させてください。",
@@ -2153,6 +2285,7 @@
       `気づき・学び: ${todayJournal.learned || "（未記入）"}`,
       `明日の一手: ${todayJournal.next || "（未記入）"}`,
       `体力ログ: ${todayFitness || "（未記入）"}`,
+      `音楽ログ: ${todayMusic || "（未記入）"}`,
       "",
       "【最近の日誌】",
       recentText,
@@ -2571,6 +2704,32 @@
         return;
       }
 
+      if (event.target.closest("[data-add-music-item]")) {
+        const journal = journalRecord(true);
+        journal.musicItems = normalizeMusicItems(journal.musicItems);
+        journal.musicSeeded = true;
+        const item = { id: uid("music"), text: "", reps: "", actualReps: "" };
+        journal.musicItems.push(item);
+        queueSave();
+        renderAll();
+        window.setTimeout(() => {
+          root.querySelector(`[data-music-item-id="${item.id}"][data-music-item-field="text"]`)?.focus();
+        }, 0);
+        return;
+      }
+
+      const delMusic = event.target.closest("[data-del-music-item]");
+      if (delMusic) {
+        event.preventDefault();
+        const journal = journalRecord(true);
+        const itemId = delMusic.dataset.delMusicItem;
+        journal.musicItems = normalizeMusicItems(journal.musicItems).filter((item) => item.id !== itemId);
+        journal.musicSeeded = true;
+        queueSave();
+        renderAll();
+        return;
+      }
+
       const themeButton = event.target.closest("[data-theme-index]");
       if (themeButton) {
         selectedThemeIndex = Number(themeButton.dataset.themeIndex);
@@ -2928,6 +3087,17 @@
           queueSave();
         }
       }
+      if (target.matches("[data-music-item-field]")) {
+        const journal = journalRecord(true);
+        journal.musicItems = normalizeMusicItems(journal.musicItems);
+        journal.musicSeeded = true;
+        const item = journal.musicItems.find((entry) => entry.id === target.dataset.musicItemId);
+        if (item) {
+          const field = ["reps", "actualReps"].includes(target.dataset.musicItemField) ? target.dataset.musicItemField : "text";
+          item[field] = target.value;
+          queueSave();
+        }
+      }
       if (target.matches("[data-wellness-field]")) {
         activeWellnessSettings()[target.dataset.wellnessField] = target.value;
         queueSave();
@@ -2952,6 +3122,7 @@
       if (target.matches("[data-active-date]")) {
         activeDate = target.value || today();
         maybeSeedFitnessItems();
+        maybeSeedMusicItems();
         renderAll();
       }
       if (target.matches("[data-coach-area]")) {

@@ -256,6 +256,7 @@ final class Happiness_Manager_Plugin {
                 'userId' => get_current_user_id(),
                 'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
                 'hasApiKey' => self::has_api_key(),
+                'catchimeloUrl' => 'https://umbrellaparade.github.io/catchimelo-trainer/',
             ]);
         }
     }
@@ -278,6 +279,7 @@ final class Happiness_Manager_Plugin {
             'userId' => get_current_user_id(),
             'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
             'hasApiKey' => self::has_api_key(),
+            'catchimeloUrl' => 'https://umbrellaparade.github.io/catchimelo-trainer/',
         ]);
     }
 
@@ -888,7 +890,7 @@ final class Happiness_Manager_Plugin {
             return 1400;
         }
 
-        if (in_array($key, ['message', 'response', 'memo', 'best', 'learned', 'next', 'gratitude', 'selfTalk', 'fitnessLog'], true)) {
+        if (in_array($key, ['message', 'response', 'memo', 'best', 'learned', 'next', 'gratitude', 'selfTalk', 'fitnessLog', 'musicLog'], true)) {
             return 700;
         }
 
@@ -1134,15 +1136,17 @@ final class Happiness_Manager_Plugin {
             'gratitude' => '感謝',
             'selfTalk' => '自分への言葉',
             'fitnessLog' => '体力ログ',
+            'musicLog' => '音楽ログ',
             'memo' => 'メモ',
         ];
 
         $lines = [];
         foreach ($labels as $key => $label) {
             $value = isset($journal[$key]) ? trim((string) $journal[$key]) : '';
-            if ($key === 'fitnessLog' && !empty($journal['fitnessItems']) && is_array($journal['fitnessItems'])) {
+            $item_key = $key === 'fitnessLog' ? 'fitnessItems' : ($key === 'musicLog' ? 'musicItems' : '');
+            if ($item_key !== '' && !empty($journal[$item_key]) && is_array($journal[$item_key])) {
                 $fitness_lines = [];
-                foreach ($journal['fitnessItems'] as $item) {
+                foreach ($journal[$item_key] as $item) {
                     if (!is_array($item)) {
                         continue;
                     }

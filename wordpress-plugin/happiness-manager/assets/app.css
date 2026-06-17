@@ -55,7 +55,7 @@
   color: var(--hm-ink);
 }
 
-.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result, .hm-stretch-menu, .hm-stretch-preview, .hm-condition-chart, .hm-journal-shell, .hm-journal-group, .hm-journal-history, .hm-journal-history-field) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
+.hm-app-root :where(.hm-shell, .hm-view, .hm-panel, .hm-coach, .hm-memory-box, .hm-memory-history, .hm-memory-entry, .hm-memory-add, .hm-memory-new, .hm-archive-entry, .hm-board-context, .hm-theme-subs-panel, .hm-selected-theme-window, .hm-coach-suggestions, .hm-coach-result, .hm-stretch-menu, .hm-stretch-preview, .hm-condition-chart, .hm-journal-shell, .hm-journal-group, .hm-catchimelo-panel, .hm-journal-history, .hm-journal-history-field) :where(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label, summary, em, div) {
   color: var(--hm-ink) !important;
   -webkit-text-fill-color: var(--hm-ink) !important;
   opacity: 1 !important;
@@ -914,6 +914,13 @@
   align-items: start;
 }
 
+.hm-journal-wellness-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
 .hm-journal-group {
   display: grid;
   gap: 10px;
@@ -1029,6 +1036,26 @@
   height: 32px;
   line-height: 1;
   font-weight: 800;
+}
+
+.hm-catchimelo-panel {
+  grid-column: 1 / -1;
+}
+
+.hm-catchimelo-panel header a {
+  color: #1e5f4f;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.hm-catchimelo-frame {
+  display: block;
+  width: 100%;
+  min-height: 740px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fbfbf8;
 }
 
 .hm-fitness-log span,
@@ -1646,6 +1673,7 @@
   .hm-form-grid,
   .hm-perspectives,
   .hm-journal-record-grid,
+  .hm-journal-wellness-grid,
   .hm-journal-insights,
   .hm-board-edit {
     grid-template-columns: 1fr;
@@ -1790,6 +1818,10 @@
   .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item button {
     width: 30px;
     height: 30px;
+  }
+
+  .hm-frontend-app[data-mobile-mode="1"] .hm-catchimelo-frame {
+    min-height: 78dvh;
   }
 
   .hm-coach-suggestions-head,
