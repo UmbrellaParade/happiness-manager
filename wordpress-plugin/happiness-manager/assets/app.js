@@ -679,7 +679,8 @@
       return {
         id: String(source.id || `fitness_${index + 1}`),
         text: String(source.text || ""),
-        reps: String(source.reps || "")
+        reps: String(source.reps || ""),
+        actualReps: String(source.actualReps || "")
       };
     });
   }
@@ -735,11 +736,15 @@
 
   function fitnessItemsSummary(journal, limit = 12) {
     return normalizeFitnessItems(journal?.fitnessItems)
-      .filter((item) => item.text.trim() || item.reps.trim())
+      .filter((item) => item.text.trim() || item.reps.trim() || item.actualReps.trim())
       .slice(0, limit)
       .map((item) => {
         const text = item.text.trim() || "内容未入力";
-        return item.reps.trim() ? `${text}（${item.reps.trim()}）` : text;
+        const details = [
+          item.reps.trim() ? `予定:${item.reps.trim()}` : "",
+          item.actualReps.trim() ? `実際:${item.actualReps.trim()}` : ""
+        ].filter(Boolean);
+        return details.length ? `${text}（${details.join(" / ")}）` : text;
       })
       .join(" / ");
   }
@@ -1750,7 +1755,8 @@
       <div class="hm-fitness-item">
         <span class="hm-fitness-index">${index + 1}</span>
         <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="text" value="${escapeHtml(item.text)}" placeholder="内容" aria-label="体力ログの内容">
-        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="回数" aria-label="体力ログの回数">
+        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="予定" aria-label="体力ログの予定回数">
+        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="actualReps" value="${escapeHtml(item.actualReps)}" placeholder="実際" aria-label="体力ログの実際にやった回数">
         <button type="button" data-del-fitness-item="${escapeHtml(item.id)}" title="削除" aria-label="削除">×</button>
       </div>
     `;
@@ -2496,7 +2502,7 @@
       if (event.target.closest("[data-add-fitness-item]")) {
         const journal = journalRecord(true);
         journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
-        const item = { id: uid("fitness"), text: "", reps: "" };
+        const item = { id: uid("fitness"), text: "", reps: "", actualReps: "" };
         journal.fitnessItems.push(item);
         queueSave();
         renderAll();
@@ -2868,7 +2874,8 @@
         journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
         const item = journal.fitnessItems.find((entry) => entry.id === target.dataset.fitnessItemId);
         if (item) {
-          item[target.dataset.fitnessItemField === "reps" ? "reps" : "text"] = target.value;
+          const field = ["reps", "actualReps"].includes(target.dataset.fitnessItemField) ? target.dataset.fitnessItemField : "text";
+          item[field] = target.value;
           queueSave();
         }
       }

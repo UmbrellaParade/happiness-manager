@@ -970,7 +970,7 @@
 
 .hm-fitness-item {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) minmax(86px, 0.36fr) 32px;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(78px, 0.28fr) minmax(78px, 0.28fr) 32px;
   gap: 8px;
   align-items: center;
 }
@@ -1745,7 +1745,7 @@
   }
 
   .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item {
-    grid-template-columns: 28px minmax(0, 1fr) 78px 30px;
+    grid-template-columns: 28px minmax(0, 1fr) 64px 64px 30px;
     gap: 6px;
   }
 

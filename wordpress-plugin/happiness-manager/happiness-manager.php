@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.50
+ * Version: 0.1.51
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.50';
+    private const VERSION = '0.1.51';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -1116,7 +1116,8 @@ final class Happiness_Manager_Plugin {
                     }
                     $text = trim((string) ($item['text'] ?? ''));
                     $reps = trim((string) ($item['reps'] ?? ''));
-                    if ($text !== '' || $reps !== '') {
+                    $actual_reps = trim((string) ($item['actualReps'] ?? ''));
+                    if ($text !== '' || $reps !== '' || $actual_reps !== '') {
                         return true;
                     }
                 }
@@ -1147,10 +1148,20 @@ final class Happiness_Manager_Plugin {
                     }
                     $text = trim((string) ($item['text'] ?? ''));
                     $reps = trim((string) ($item['reps'] ?? ''));
-                    if ($text === '' && $reps === '') {
+                    $actual_reps = trim((string) ($item['actualReps'] ?? ''));
+                    if ($text === '' && $reps === '' && $actual_reps === '') {
                         continue;
                     }
-                    $fitness_lines[] = $reps !== '' ? sprintf('%s（%s）', $text !== '' ? $text : '内容未入力', $reps) : $text;
+                    $details = [];
+                    if ($reps !== '') {
+                        $details[] = '予定:' . $reps;
+                    }
+                    if ($actual_reps !== '') {
+                        $details[] = '実際:' . $actual_reps;
+                    }
+                    $fitness_lines[] = $details
+                        ? sprintf('%s（%s）', $text !== '' ? $text : '内容未入力', implode(' / ', $details))
+                        : $text;
                 }
                 if ($fitness_lines) {
                     $value = trim(implode("\n", $fitness_lines) . ($value !== '' ? "\n\n" . $value : ''));
