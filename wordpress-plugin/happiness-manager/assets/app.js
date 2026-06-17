@@ -669,7 +669,7 @@
   }
 
   function blankJournalRecord() {
-    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", fitnessItems: [], memo: "" };
+    return { best: "", learned: "", next: "", gratitude: "", selfTalk: "", fitnessLog: "", fitnessItems: [], fitnessSeeded: false, memo: "" };
   }
 
   function normalizeFitnessItems(items) {
@@ -692,7 +692,42 @@
       next[key] = String(next[key] || "");
     });
     next.fitnessItems = normalizeFitnessItems(source.fitnessItems);
+    next.fitnessSeeded = Boolean(source.fitnessSeeded);
     return next;
+  }
+
+  function latestPriorFitnessItems(beforeDate) {
+    const prefix = `${state.activeProfileId}|`;
+    let bestDate = "";
+    let bestItems = [];
+    Object.keys(state.journals || {}).forEach((key) => {
+      if (!key.startsWith(prefix)) return;
+      const date = key.split("|")[1] || "";
+      if (!date || date >= beforeDate) return;
+      const items = normalizeFitnessItems((state.journals[key] || {}).fitnessItems);
+      if (!items.length) return;
+      if (date > bestDate) {
+        bestDate = date;
+        bestItems = items;
+      }
+    });
+    return bestItems
+      .filter((item) => item.text.trim() || item.reps.trim())
+      .map((item) => ({ id: uid("fitness"), text: item.text, reps: item.reps, actualReps: "" }));
+  }
+
+  function maybeSeedFitnessItems() {
+    if (!state || activeDate < today()) return;
+    const key = dayKey();
+    const existing = state.journals[key];
+    if (existing && existing.fitnessSeeded) return;
+    if (existing && normalizeFitnessItems(existing.fitnessItems).length) return;
+    const seeded = latestPriorFitnessItems(activeDate);
+    if (!seeded.length) return;
+    const record = journalRecord(true);
+    record.fitnessItems = seeded;
+    record.fitnessSeeded = true;
+    queueSave();
   }
 
   function journalRecord(forWrite = false) {
@@ -1276,6 +1311,7 @@
         : `読み込みに失敗したため保存を止めました: ${error.message}`;
       saveTone = "error";
     }
+    if (!saveLocked) maybeSeedFitnessItems();
     renderAll();
     scrollAllToAppTitle("auto");
   }
@@ -1753,11 +1789,21 @@
   function renderFitnessItem(item, index) {
     return `
       <div class="hm-fitness-item">
-        <span class="hm-fitness-index">${index + 1}</span>
-        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="text" value="${escapeHtml(item.text)}" placeholder="内容" aria-label="体力ログの内容">
-        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="予定" aria-label="体力ログの予定回数">
-        <input type="text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="actualReps" value="${escapeHtml(item.actualReps)}" placeholder="実際" aria-label="体力ログの実際にやった回数">
-        <button type="button" data-del-fitness-item="${escapeHtml(item.id)}" title="削除" aria-label="削除">×</button>
+        <div class="hm-fitness-item-head">
+          <span class="hm-fitness-index">${index + 1}</span>
+          <input type="text" class="hm-fitness-text" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="text" value="${escapeHtml(item.text)}" placeholder="やる内容" aria-label="体力ログの内容">
+          <button type="button" class="hm-fitness-del" data-del-fitness-item="${escapeHtml(item.id)}" title="削除" aria-label="削除">×</button>
+        </div>
+        <div class="hm-fitness-nums">
+          <label class="hm-fitness-num">
+            <span>目標</span>
+            <input type="text" inputmode="numeric" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="reps" value="${escapeHtml(item.reps)}" placeholder="数" aria-label="体力ログの目標">
+          </label>
+          <label class="hm-fitness-num">
+            <span>達成</span>
+            <input type="text" inputmode="numeric" data-fitness-item-id="${escapeHtml(item.id)}" data-fitness-item-field="actualReps" value="${escapeHtml(item.actualReps)}" placeholder="数" aria-label="体力ログの達成">
+          </label>
+        </div>
       </div>
     `;
   }
@@ -2502,6 +2548,7 @@
       if (event.target.closest("[data-add-fitness-item]")) {
         const journal = journalRecord(true);
         journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
+        journal.fitnessSeeded = true;
         const item = { id: uid("fitness"), text: "", reps: "", actualReps: "" };
         journal.fitnessItems.push(item);
         queueSave();
@@ -2518,6 +2565,7 @@
         const journal = journalRecord(true);
         const itemId = delFitness.dataset.delFitnessItem;
         journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems).filter((item) => item.id !== itemId);
+        journal.fitnessSeeded = true;
         queueSave();
         renderAll();
         return;
@@ -2872,6 +2920,7 @@
       if (target.matches("[data-fitness-item-field]")) {
         const journal = journalRecord(true);
         journal.fitnessItems = normalizeFitnessItems(journal.fitnessItems);
+        journal.fitnessSeeded = true;
         const item = journal.fitnessItems.find((entry) => entry.id === target.dataset.fitnessItemId);
         if (item) {
           const field = ["reps", "actualReps"].includes(target.dataset.fitnessItemField) ? target.dataset.fitnessItemField : "text";
@@ -2902,6 +2951,7 @@
       const target = event.target;
       if (target.matches("[data-active-date]")) {
         activeDate = target.value || today();
+        maybeSeedFitnessItems();
         renderAll();
       }
       if (target.matches("[data-coach-area]")) {

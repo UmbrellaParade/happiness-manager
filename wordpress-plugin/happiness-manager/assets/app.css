@@ -970,9 +970,42 @@
 
 .hm-fitness-item {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) minmax(78px, 0.28fr) minmax(78px, 0.28fr) 32px;
+  gap: 8px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: var(--hm-soft);
+  padding: 8px;
+}
+
+.hm-fitness-item-head {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 32px;
   gap: 8px;
   align-items: center;
+}
+
+.hm-fitness-nums {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hm-fitness-num {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.hm-fitness-num > span {
+  white-space: nowrap;
+}
+
+.hm-fitness-num input {
+  min-width: 0;
+  text-align: center;
 }
 
 .hm-fitness-index {
@@ -1744,8 +1777,8 @@
     max-height: 72dvh;
   }
 
-  .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item {
-    grid-template-columns: 28px minmax(0, 1fr) 64px 64px 30px;
+  .hm-frontend-app[data-mobile-mode="1"] .hm-fitness-item-head {
+    grid-template-columns: 28px minmax(0, 1fr) 30px;
     gap: 6px;
   }
 
