@@ -20,4 +20,4 @@
 
 ブラウザ内の一時WordPressで試す場合は、WordPress Playgroundを使えます。
 
-https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.46.json
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/UmbrellaParade/happiness-manager/main/playground/blueprint-v0.1.47.json

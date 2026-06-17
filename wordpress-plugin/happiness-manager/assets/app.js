@@ -1401,7 +1401,13 @@
           </div>
         </div>
         <div class="hm-actions">
-          <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
+          <div class="hm-theme-editor-head">
+            <label><span>テーマ名</span><input data-theme-title="${selectedThemeIndex}" value="${escapeHtml(selected.title)}"></label>
+            <div class="hm-theme-move-buttons">
+              <button type="button" data-move-theme="${selectedThemeIndex}" data-move-theme-direction="up" ${selectedThemeIndex === 0 ? "disabled" : ""}>テーマを上へ</button>
+              <button type="button" data-move-theme="${selectedThemeIndex}" data-move-theme-direction="down" ${selectedThemeIndex === 7 ? "disabled" : ""}>テーマを下へ</button>
+            </div>
+          </div>
           ${renderSelectedThemeWindow(themes, selectedThemeIndex)}
           ${selected.actions.map((action, index) => `
             <div class="hm-action-row">
@@ -2288,6 +2294,23 @@
       if (themeButton) {
         selectedThemeIndex = Number(themeButton.dataset.themeIndex);
         renderAll();
+        return;
+      }
+
+      const moveThemeButton = event.target.closest("[data-move-theme]");
+      if (moveThemeButton && !moveThemeButton.disabled) {
+        const themeIndex = Number(moveThemeButton.dataset.moveTheme);
+        const direction = moveThemeButton.dataset.moveThemeDirection === "up" ? -1 : 1;
+        const nextIndex = themeIndex + direction;
+        const themes = boardThemesAtPath(activeGoal(), true);
+        if (!Array.isArray(themes) || themeIndex < 0 || themeIndex > 7 || nextIndex < 0 || nextIndex > 7) return;
+        [themes[themeIndex], themes[nextIndex]] = [themes[nextIndex], themes[themeIndex]];
+        selectedThemeIndex = nextIndex;
+        queueSave();
+        renderAll();
+        window.setTimeout(() => {
+          root.querySelector(`[data-theme-title="${nextIndex}"]`)?.focus();
+        }, 0);
         return;
       }
 

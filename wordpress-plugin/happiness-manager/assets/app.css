@@ -563,6 +563,41 @@
   padding: 0 10px;
 }
 
+.hm-theme-editor-head {
+  display: grid;
+  gap: 8px;
+}
+
+.hm-theme-editor-head label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.hm-theme-move-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hm-theme-move-buttons button {
+  flex: 0 0 auto;
+  color: var(--hm-muted);
+  min-height: 34px;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  background: #fff;
+  padding: 7px 10px;
+  font-weight: 800;
+}
+
+.hm-theme-move-buttons button:disabled {
+  background: #f6f8fb;
+  color: #a5afbd;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .hm-action-row {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
