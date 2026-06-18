@@ -123,10 +123,11 @@
       id: "p4",
       no: 4,
       name: "8分ウラからシンコペーション",
-      formula: "0.5 / 1.0 / 1.0 / 0.5 / 1.0",
+      formula: "裏で出して次の8分まで伸ばす",
       loopBeats: 4,
       divisions: 16,
-      onsets: [0.5, 1.5, 2.5, 3, 3.5],
+      onsets: [0.5, 1.5, 2.5, 3.5],
+      durations: [0.5, 0.5, 0.5, 0.5],
     },
     {
       id: "p5",
@@ -822,6 +823,10 @@
     const pattern = getRhythm();
     const step = pattern.loopBeats / pattern.divisions;
     const hitIndexes = new Set(pattern.onsets.map((beat) => Math.round(beat / step)));
+    const voiceHolds = pattern.onsets.map((beat, index) => ({
+      startIndex: Math.round(beat / step),
+      endIndex: Math.round((beat + (pattern.durations?.[index] || 0)) / step),
+    }));
     const beatIndexes = new Set(
       Array.from({ length: pattern.loopBeats }, (_, beat) => Math.round(beat / step)),
     );
@@ -831,6 +836,14 @@
       const classes = ["timeline-slot", lane];
       if (lane === "clap" && beatIndexes.has(index)) classes.push("hit");
       if (lane === "voice" && hitIndexes.has(index)) classes.push("hit");
+      if (lane === "voice") {
+        voiceHolds.forEach((hold) => {
+          if (hold.endIndex - hold.startIndex <= 1) return;
+          if (index === hold.startIndex) classes.push("hold-start");
+          if (index > hold.startIndex && index < hold.endIndex - 1) classes.push("hold-mid");
+          if (index === hold.endIndex - 1) classes.push("hold-end");
+        });
+      }
       if (isBeat) classes.push("beat");
       return `<div class="${classes.join(" ")}" data-lane="${lane}" data-slot-index="${index}"></div>`;
     }).join("");
@@ -928,16 +941,19 @@
     trackRhythmNode(noise);
   }
 
-  function scheduleVoiceHit(time, accent) {
-    const duration = state.rhythmSound === "tone" ? 0.13 : 0.06;
+  function scheduleVoiceHit(time, accent, durationBeats = 0, beatSeconds = 1) {
+    const duration = durationBeats > 0 ? durationBeats * beatSeconds * 0.96 : state.rhythmSound === "tone" ? 0.13 : 0.06;
     const envelope = audioCtx.createGain();
     envelope.connect(rhythmGain);
     envelope.gain.setValueAtTime(0.0001, time);
     envelope.gain.exponentialRampToValueAtTime(accent ? 0.95 : 0.58, time + 0.004);
+    if (durationBeats > 0) {
+      envelope.gain.setTargetAtTime(accent ? 0.68 : 0.48, time + 0.03, 0.06);
+    }
     envelope.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
     const osc = audioCtx.createOscillator();
-    osc.type = state.rhythmSound === "tone" ? "sine" : "square";
+    osc.type = durationBeats > 0 ? "triangle" : state.rhythmSound === "tone" ? "sine" : "square";
     osc.frequency.setValueAtTime(
       state.rhythmSound === "tone" ? (accent ? 440 : 330) : accent ? 1560 : 980,
       time,
@@ -968,7 +984,7 @@
     }
     if (includesVoiceGuide()) {
       pattern.onsets.forEach((beat, index) => {
-        scheduleVoiceHit(startTime + beat * beatSeconds, index === 0);
+        scheduleVoiceHit(startTime + beat * beatSeconds, index === 0, pattern.durations?.[index] || 0, beatSeconds);
       });
     }
   }
