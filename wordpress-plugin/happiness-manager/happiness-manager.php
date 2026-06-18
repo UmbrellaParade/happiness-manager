@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Happiness Manager
  * Description: Save goals, journals, routines, and AI coaching notes inside WordPress.
- * Version: 0.1.54
+ * Version: 0.1.55
  * Author: UmbrellaParade
  * Text Domain: happiness-manager
  * Update URI: https://github.com/UmbrellaParade/happiness-manager
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 }
 
 final class Happiness_Manager_Plugin {
-    private const VERSION = '0.1.54';
+    private const VERSION = '0.1.55';
     private const SLUG = 'happiness-manager';
     private const UPDATE_REPO = 'UmbrellaParade/happiness-manager';
     private const UPDATE_URI = 'https://github.com/UmbrellaParade/happiness-manager';
@@ -256,7 +256,7 @@ final class Happiness_Manager_Plugin {
                 'userId' => get_current_user_id(),
                 'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
                 'hasApiKey' => self::has_api_key(),
-                'catchimeloUrl' => 'https://umbrellaparade.github.io/catchimelo-trainer/',
+                'catchimeloUrl' => self::catchimelo_url(),
             ]);
         }
     }
@@ -279,8 +279,16 @@ final class Happiness_Manager_Plugin {
             'userId' => get_current_user_id(),
             'model' => (string) get_option(self::OPTION_MODEL, self::DEFAULT_MODEL),
             'hasApiKey' => self::has_api_key(),
-            'catchimeloUrl' => 'https://umbrellaparade.github.io/catchimelo-trainer/',
+            'catchimeloUrl' => self::catchimelo_url(),
         ]);
+    }
+
+    private static function catchimelo_url(): string {
+        return add_query_arg(
+            'hm_embed',
+            self::VERSION,
+            plugins_url('assets/catchimelo/index.html', __FILE__)
+        );
     }
 
     private static function ensure_frontend_page(bool $force = false): int {

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>キャチメロ体質養成トレーナー</title>
+    <link rel="stylesheet" href="styles.css?hm_embed=0.1.55" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Catchimelo Trainer</p>
+          <h1>キャチメロ体質養成トレーナー</h1>
+        </div>
+        <nav class="mode-tabs" aria-label="練習モード">
+          <button class="tab-button active" type="button" data-tab-target="pitch">倍音・旋律</button>
+          <button class="tab-button" type="button" data-tab-target="rhythm">リズム</button>
+        </nav>
+      </header>
+      <div id="audioNotice" class="audio-notice" hidden></div>
+
+      <main>
+        <section id="pitchPanel" class="tab-panel active" aria-labelledby="pitchTitle">
+          <div class="control-strip">
+            <div class="control-group">
+              <span class="control-label">音律</span>
+              <div class="segmented" role="group" aria-label="音律">
+                <button class="active" type="button" data-tuning="equal" aria-pressed="true">12平均律</button>
+                <button type="button" data-tuning="just" aria-pressed="false">純正律</button>
+              </div>
+            </div>
+            <label class="field">
+              <span>キー</span>
+              <select id="rootSelect"></select>
+            </label>
+            <label class="field bpm-field phrase-bpm-field">
+              <span>BPM</span>
+              <input id="phraseBpmSlider" type="range" min="40" max="180" value="96" />
+              <input id="phraseBpmInput" type="number" min="40" max="220" value="96" />
+            </label>
+            <label class="field range-field">
+              <span>音量</span>
+              <input id="volumeSlider" type="range" min="0" max="100" value="62" />
+            </label>
+          </div>
+
+          <div class="pitch-layout">
+            <section class="panel pitch-main" aria-labelledby="pitchTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Overtone</p>
+                  <h2 id="pitchTitle">倍音フレーズ</h2>
+                </div>
+                <div class="button-row">
+                  <button class="command primary" type="button" data-action="playOvertonePhrase">再生</button>
+                  <button class="command" type="button" data-action="loopOvertonePhrase">ループ</button>
+                  <button class="command" type="button" data-action="compareOvertonePhrase">聴き比べ</button>
+                  <button class="command ghost" type="button" data-action="stopPitch">停止</button>
+                </div>
+              </div>
+              <div id="overtoneMap" class="overtone-map" aria-label="倍音マップ"></div>
+              <div class="phrase-builder" aria-label="倍音フレーズ設定">
+                <div class="phrase-builder-head">
+                  <div>
+                    <p class="eyebrow">Phrase Order</p>
+                    <h3>フレーズ設定</h3>
+                  </div>
+                  <div class="button-row">
+                    <button class="command" type="button" data-action="addPhraseStep">追加</button>
+                    <button class="command" type="button" data-action="removePhraseStep">削除</button>
+                    <button class="command ghost" type="button" data-action="resetOvertonePhrase">基本形</button>
+                  </div>
+                </div>
+                <div id="phraseSteps" class="phrase-steps"></div>
+                <p id="phraseSummary" class="phrase-summary">C3 → C4 → G3 → E3 → C3</p>
+              </div>
+            </section>
+
+            <aside class="panel readout" aria-label="音程情報">
+              <p class="eyebrow">Now</p>
+              <h2 id="readoutName">ド</h2>
+              <div class="meter-block">
+                <div class="meter-label">選択中</div>
+                <div id="currentTuning" class="meter-value">12平均律</div>
+              </div>
+              <dl class="tone-details">
+                <div>
+                  <dt>鳴る音</dt>
+                  <dd id="currentFrequency">130.81 Hz</dd>
+                </div>
+                <div>
+                  <dt>12平均律</dt>
+                  <dd id="equalFrequency">130.81 Hz</dd>
+                </div>
+                <div>
+                  <dt>純正律</dt>
+                  <dd id="justFrequency">130.81 Hz</dd>
+                </div>
+                <div>
+                  <dt>差</dt>
+                  <dd id="centDifference">0.0 cents</dd>
+                </div>
+              </dl>
+              <div class="button-row readout-actions">
+                <button class="command primary" type="button" data-action="playCurrentPitch">この音</button>
+                <button class="command" type="button" data-action="compareCurrentPitch">比較</button>
+              </div>
+            </aside>
+          </div>
+
+          <section class="panel mixer-panel" aria-labelledby="mixerTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Harmonic Mixer</p>
+                <h2 id="mixerTitle">倍音ミキサー</h2>
+              </div>
+              <div class="button-row">
+                <button class="command primary" type="button" data-action="startOvertoneMixer">重ねて再生</button>
+                <button class="command" type="button" data-action="resetOvertoneMixerLevels">デフォルト</button>
+                <button class="command ghost" type="button" data-action="stopOvertoneMixer">停止</button>
+              </div>
+            </div>
+            <div id="overtoneMixerRows" class="overtone-mixer"></div>
+          </section>
+
+          <section class="panel scale-panel" aria-labelledby="scaleTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Melody</p>
+                <h2 id="scaleTitle">ドレミ旋律</h2>
+              </div>
+              <div class="button-row">
+                <button class="command primary" type="button" data-action="playScaleUp">上行</button>
+                <button class="command" type="button" data-action="playScaleDown">下行</button>
+                <button class="command" type="button" data-action="compareScale">聴き比べ</button>
+                <button class="command ghost" type="button" data-action="stopPitch">停止</button>
+              </div>
+            </div>
+            <div id="scaleGrid" class="note-grid" aria-label="ドレミ音階"></div>
+          </section>
+
+          <section class="reference-strip" aria-label="教材画像">
+            <figure>
+              <img src="assets/overtone-map.jpg?hm_embed=0.1.55" alt="倍音の対応図" />
+            </figure>
+            <figure>
+              <img src="assets/overtone-focus.jpg?hm_embed=0.1.55" alt="倍音意識の図" />
+            </figure>
+            <figure>
+              <img src="assets/ear-training.jpg?hm_embed=0.1.55" alt="キャチメロ音感編" />
+            </figure>
+          </section>
+        </section>
+
+        <section id="rhythmPanel" class="tab-panel" aria-labelledby="rhythmTitle" hidden>
+          <div class="control-strip">
+            <label class="field bpm-field">
+              <span>BPM</span>
+              <input id="bpmSlider" type="range" min="40" max="180" value="82" />
+              <input id="bpmInput" type="number" min="40" max="220" value="82" />
+            </label>
+            <div class="control-group">
+              <span class="control-label">練習</span>
+              <div class="segmented" role="group" aria-label="リズム練習モード">
+                <button class="active" type="button" data-practice-mode="both" aria-pressed="true">両方</button>
+                <button type="button" data-practice-mode="clap" aria-pressed="false">手だけ</button>
+                <button type="button" data-practice-mode="voice" aria-pressed="false">口だけ</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <span class="control-label">口音</span>
+              <div class="segmented" role="group" aria-label="リズム音色">
+                <button class="active" type="button" data-rhythm-sound="click" aria-pressed="true">クリック</button>
+                <button type="button" data-rhythm-sound="tone" aria-pressed="false">タン</button>
+              </div>
+            </div>
+            <label class="check-field">
+              <input id="countInToggle" type="checkbox" checked />
+              <span>4拍カウント</span>
+            </label>
+            <label class="field range-field">
+              <span>音量</span>
+              <input id="rhythmVolumeSlider" type="range" min="0" max="100" value="70" />
+            </label>
+          </div>
+
+          <div class="rhythm-layout">
+            <section class="panel rhythm-main" aria-labelledby="rhythmTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Rhythm</p>
+                  <h2 id="rhythmTitle">リズムメニュー</h2>
+                </div>
+                <div class="button-row">
+                  <button class="command primary" type="button" data-action="startRhythm">ループ</button>
+                  <button class="command" type="button" data-action="playRhythmOnce">1回</button>
+                  <button class="command ghost" type="button" data-action="stopRhythm">停止</button>
+                </div>
+              </div>
+              <div id="rhythmList" class="rhythm-list" aria-label="リズムパターン一覧"></div>
+            </section>
+
+            <aside class="panel rhythm-monitor" aria-label="リズム表示">
+              <p class="eyebrow">Pattern</p>
+              <h2 id="rhythmName">4分音符連打</h2>
+              <p id="rhythmFormula" class="formula">1 / 1 / 1 / 1</p>
+              <p id="rhythmPracticeHint" class="practice-hint">手拍子は4分で一定、口はメニューのリズム</p>
+              <div class="timeline-shell">
+                <div id="timelineProgress" class="timeline-progress"></div>
+                <div id="rhythmTimeline" class="rhythm-timeline"></div>
+              </div>
+              <dl class="tone-details rhythm-details">
+                <div>
+                  <dt>長さ</dt>
+                  <dd id="rhythmLength">4拍</dd>
+                </div>
+                <div>
+                  <dt>テンポ</dt>
+                  <dd id="rhythmBpm">82 BPM</dd>
+                </div>
+              </dl>
+            </aside>
+          </div>
+
+          <section class="reference-strip single" aria-label="リズム教材画像">
+            <figure>
+              <img src="assets/rhythm-menu.jpg?hm_embed=0.1.55" alt="キャチメロリズム編メニュー" />
+            </figure>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js?hm_embed=0.1.55"></script>
+  </body>
+</html>
